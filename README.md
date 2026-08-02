@@ -186,8 +186,10 @@ most likely place for a surprise.
 
 ### Roadmap
 
+- ~~**v0.3** — wire the consent prompt to `core-net`~~ — done. Tapping "Resolve
+  this one link" now drives the Rust resolve session through OkHttp and replaces
+  the prompt with the location behind the short link. Untried on a device.
 - **v0.2** — settings, per-domain toggles, precision blur in the UI, i18n
-- **v0.3** — wire the consent prompt to `core-net` in the `standard` flavor
 - **v1.0** — F-Droid, reproducible builds, accessibility pass
 - **v2** — a map image; offline PMTiles regions preferred over fetching tiles,
   since a tile request tells a server exactly where you are looking
