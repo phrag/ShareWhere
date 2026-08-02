@@ -36,13 +36,26 @@
         <activity
             android:name=".share.ShareActivity"
             android:excludeFromRecents="true"
-            android:exported="true"
+            android:exported="false"
             android:launchMode="singleTask"
             android:noHistory="true"
             android:taskAffinity=""
-            android:theme="@style/Theme.ShareWhere.Transparent">
+            android:theme="@style/Theme.ShareWhere.Transparent" />
 
-            <intent-filter android:label="@string/share_target_clean">
+        <!--
+            Two share-sheet entries, as two aliases onto the same activity.
+
+            An alias cannot carry an intent extra, so ShareActivity reads which
+            one was launched from the incoming component name. That is more
+            reliable than publishing dynamic share shortcuts, and it means both
+            entries appear in the sheet without any runtime registration.
+        -->
+        <activity-alias
+            android:name=".share.CleanAndCopy"
+            android:exported="true"
+            android:label="@string/share_target_clean"
+            android:targetActivity=".share.ShareActivity">
+            <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
@@ -54,12 +67,24 @@
                 is replaced with the cleaned version. Costs three lines and is
                 the app's best hidden feature.
             -->
-            <intent-filter android:label="@string/share_target_clean">
+            <intent-filter>
                 <action android:name="android.intent.action.PROCESS_TEXT" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".share.CleanAndShare"
+            android:exported="true"
+            android:label="@string/share_target_preview"
+            android:targetActivity=".share.ShareActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity-alias>
 
         <!--
             Map-link handlers ship DISABLED and are switched on from Settings.
@@ -97,12 +122,5 @@
             </intent-filter>
         </activity-alias>
 
-        <!--
-            Puts both actions in the direct-share row at the top of the sheet
-            rather than buried in the app grid.
-        -->
-        <meta-data
-            android:name="android.app.shortcuts"
-            android:resource="@xml/shortcuts" />
     </application>
 </manifest>

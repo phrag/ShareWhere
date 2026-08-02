@@ -13,8 +13,14 @@ yanked = "deny"
 # ShareWhere is GPL-3.0-or-later. LGPL-3.0 is here for the vendored ClearURLs
 # catalog; everything else must be permissive so the combined work stays
 # distributable.
+#
+# The `-or-later` variants are load-bearing, not belt and braces: SPDX treats
+# `GPL-3.0-or-later` as a distinct identifier from `GPL-3.0`, so listing only
+# the latter makes cargo-deny reject our own workspace crates.
 allow = [
+    "GPL-3.0-or-later",
     "GPL-3.0",
+    "LGPL-3.0-or-later",
     "LGPL-3.0",
     "MIT",
     "Apache-2.0",
@@ -27,6 +33,10 @@ allow = [
     "MPL-2.0",
 ]
 confidence-threshold = 0.9
+
+# The allow-list above is a policy statement about what may enter the tree, so
+# entries that nothing currently uses are expected rather than a problem.
+unused-allowed-license = "allow"
 
 [bans]
 multiple-versions = "warn"

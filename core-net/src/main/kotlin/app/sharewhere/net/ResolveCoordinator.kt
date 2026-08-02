@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.CookieJar
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import uniffi.sharewhere.FetchRequest
@@ -34,14 +35,14 @@ class ResolveCoordinator(
     suspend fun resolve(input: String, options: Options): Outcome =
         withContext(Dispatchers.IO) {
             val session = ResolveSession(input, options)
-            while (true) {
-                when (val step = session.advance()) {
-                    is Step.Done -> return@withContext step.outcome
-                    is Step.Fetch -> session.supply(perform(step.request))
-                }
+
+            // The core caps the hop count, so this terminates on its own.
+            var step = session.advance()
+            while (step is Step.Fetch) {
+                session.supply(perform(step.request))
+                step = session.advance()
             }
-            @Suppress("UNREACHABLE_CODE")
-            Outcome.Nothing
+            (step as Step.Done).outcome
         }
 
     private fun perform(request: FetchRequest): FetchResponse {
@@ -97,12 +98,12 @@ class ResolveCoordinator(
      * an SSRF primitive against whatever the phone can reach.
      */
     private fun isAllowed(request: FetchRequest): Boolean {
-        val url = runCatching { okhttp3.HttpUrl.get(request.url) }.getOrNull() ?: return false
-        if (url.scheme() != "https") return false
-        if (request.allowedHosts.none { it.equals(url.host(), ignoreCase = true) }) return false
+        val url = request.url.toHttpUrlOrNull() ?: return false
+        if (url.scheme != "https") return false
+        if (request.allowedHosts.none { it.equals(url.host, ignoreCase = true) }) return false
 
         return runCatching {
-            InetAddress.getAllByName(url.host()).none {
+            InetAddress.getAllByName(url.host).none {
                 it.isLoopbackAddress || it.isSiteLocalAddress || it.isLinkLocalAddress ||
                     it.isAnyLocalAddress || it.isMulticastAddress
             }

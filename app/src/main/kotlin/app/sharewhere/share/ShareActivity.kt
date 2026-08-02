@@ -40,8 +40,10 @@ class ShareActivity : ComponentActivity() {
             return
         }
 
-        val mode = when (intent.getStringExtra(EXTRA_MODE)) {
-            MODE_PREVIEW -> Mode.Preview
+        // An activity-alias cannot carry an extra, so the entry the user picked
+        // in the share sheet is identified by which alias the system launched.
+        val mode = when (intent.component?.className) {
+            ALIAS_CLEAN_AND_SHARE -> Mode.Preview
             else -> Mode.CopyOnly
         }
 
@@ -151,8 +153,8 @@ class ShareActivity : ComponentActivity() {
     }
 
     companion object {
-        const val EXTRA_MODE = "app.sharewhere.MODE"
-        const val MODE_PREVIEW = "preview"
-        const val MODE_COPY = "copy"
+        /** Must match the `activity-alias` names in the manifest. */
+        const val ALIAS_CLEAN_AND_COPY = "app.sharewhere.share.CleanAndCopy"
+        const val ALIAS_CLEAN_AND_SHARE = "app.sharewhere.share.CleanAndShare"
     }
 }

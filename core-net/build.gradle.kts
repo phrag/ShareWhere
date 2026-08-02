@@ -24,5 +24,6 @@ android {
 dependencies {
     implementation(project(":core-rust"))
     implementation(libs.okhttp)
+    implementation(libs.kotlinx.coroutines.android)
     testImplementation(libs.junit)
 }
