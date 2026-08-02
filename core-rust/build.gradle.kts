@@ -73,28 +73,57 @@ val cargoBuild by tasks.registering(Exec::class) {
     outputs.dir(out)
 }
 
+/**
+ * Builds the core for the host machine.
+ *
+ * Needed twice over: uniffi-bindgen has to dlopen a library built for THIS
+ * machine to read the FFI metadata out of it, and the JVM unit tests link the
+ * same library so they exercise the real bindings without an emulator.
+ */
+val cargoBuildHost by tasks.registering(Exec::class) {
+    group = "rust"
+    description = "Builds the Rust core for the host machine."
+    workingDir = rustDir
+    commandLine("cargo", "build", "-p", "sharewhere-ffi")
+
+    inputs.dir(rustDir.resolve("crates"))
+    inputs.file(rustDir.resolve("Cargo.lock"))
+}
+
 val generateBindings by tasks.registering(Exec::class) {
     group = "rust"
     description = "Generates Kotlin bindings from the built library."
-    dependsOn(cargoBuild)
+    // cargoBuild cross-compiles for the Android ABIs, whose artifacts land under
+    // target/<triple>/. uniffi-bindgen needs a library it can dlopen on THIS
+    // machine, so the host build is a separate, mandatory prerequisite.
+    dependsOn(cargoBuild, cargoBuildHost)
     workingDir = rustDir
 
     val libraryName = if (OperatingSystem.current().isMacOsX) "libsharewhere.dylib" else "libsharewhere.so"
     val profile = if (project.hasProperty("rustRelease")) "release" else "debug"
     val library = rustDir.resolve("target/$profile/$libraryName")
     val out = layout.buildDirectory.dir("generated/uniffi").get().asFile
-    doFirst { out.mkdirs() }
+
+    doFirst {
+        out.mkdirs()
+        // uniffi-bindgen reports a missing library as a bare
+        // "No such file or directory (os error 2)" with no path, which is
+        // genuinely hard to diagnose. Say which file, and say it here.
+        check(library.isFile) {
+            "uniffi-bindgen needs the host library at $library, which does not exist. " +
+                "`cargo run --bin uniffi-bindgen` does NOT build the package's cdylib, " +
+                "so cargoBuildHost has to have run first."
+        }
+    }
 
     commandLine(
         "cargo", "run", "-p", "sharewhere-ffi", "--features", "bindgen",
         "--bin", "uniffi-bindgen", "--",
         "generate", "--library", library.absolutePath,
         "--language", "kotlin", "--out-dir", out.absolutePath,
-        // Without this uniffi-bindgen shells out to ktlint to pretty-print the
-        // generated Kotlin, and dies with a bare "No such file or directory"
-        // on any machine that does not happen to have ktlint installed --
-        // which is every CI runner. The formatting is irrelevant: nothing
-        // reads this code, and it is regenerated on every build.
+        // uniffi-bindgen otherwise shells out to ktlint to pretty-print its
+        // output, which no CI runner has. Nothing reads this code and it is
+        // regenerated every build, so the formatting is irrelevant.
         "--no-format",
     )
 
@@ -106,17 +135,9 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 }
 tasks.named("preBuild") { dependsOn(generateBindings) }
 
-/**
- * Builds the core for the host so JVM unit tests can exercise the real FFI
- * without an emulator. This catches binding drift -- a renamed record field, a
- * changed enum variant -- in seconds rather than at runtime on a device.
- */
-val cargoBuildHost by tasks.registering(Exec::class) {
-    group = "rust"
-    workingDir = rustDir
-    commandLine("cargo", "build", "-p", "sharewhere-ffi")
-}
-
+// JVM unit tests link the host library so they exercise the real bindings,
+// catching binding drift -- a renamed record field, a changed enum variant --
+// in seconds rather than at runtime on a device.
 tasks.withType<Test>().configureEach {
     dependsOn(cargoBuildHost, generateBindings)
     systemProperty("jna.library.path", rustDir.resolve("target/debug").absolutePath)
