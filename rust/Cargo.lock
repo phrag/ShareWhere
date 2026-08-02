@@ -515,6 +515,12 @@ version = "0.1.0"
 [[package]]
 name = "sharewhere-geo"
 version = "0.1.0"
+dependencies = [
+ "percent-encoding",
+ "proptest",
+ "regex",
+ "url",
+]
 
 [[package]]
 name = "sharewhere-rules"

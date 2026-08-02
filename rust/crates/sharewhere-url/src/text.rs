@@ -29,8 +29,8 @@ pub fn find_urls(text: &str) -> Vec<(usize, usize)> {
         };
         let start = cursor + offset;
 
-        let is_url_start = lower[start..].starts_with("http://")
-            || lower[start..].starts_with("https://");
+        let is_url_start =
+            lower[start..].starts_with("http://") || lower[start..].starts_with("https://");
         // Reject a match inside a longer word, e.g. `xhttps://`.
         let at_boundary = start == 0 || !bytes[start - 1].is_ascii_alphanumeric();
 
@@ -134,12 +134,18 @@ mod tests {
     use super::*;
 
     fn spans(text: &str) -> Vec<&str> {
-        find_urls(text).into_iter().map(|(s, e)| &text[s..e]).collect()
+        find_urls(text)
+            .into_iter()
+            .map(|(s, e)| &text[s..e])
+            .collect()
     }
 
     #[test]
     fn finds_a_bare_url() {
-        assert_eq!(spans("https://example.com/a"), vec!["https://example.com/a"]);
+        assert_eq!(
+            spans("https://example.com/a"),
+            vec!["https://example.com/a"]
+        );
     }
 
     #[test]
@@ -152,7 +158,10 @@ mod tests {
 
     #[test]
     fn strips_sentence_punctuation_but_keeps_balanced_brackets() {
-        assert_eq!(spans("see https://example.com/a."), vec!["https://example.com/a"]);
+        assert_eq!(
+            spans("see https://example.com/a."),
+            vec!["https://example.com/a"]
+        );
         assert_eq!(
             spans("see https://en.wikipedia.org/wiki/Foo_(bar)"),
             vec!["https://en.wikipedia.org/wiki/Foo_(bar)"]
@@ -179,11 +188,7 @@ mod tests {
     #[test]
     fn preserves_surrounding_text() {
         let opts = SanitizeOptions::default();
-        let out = sanitize_text(
-            "Look: https://example.com/a?utm_source=x — nice",
-            &opts,
-        )
-        .unwrap();
+        let out = sanitize_text("Look: https://example.com/a?utm_source=x — nice", &opts).unwrap();
         assert_eq!(out.cleaned_text, "Look: https://example.com/a — nice");
         assert!(out.changed);
     }

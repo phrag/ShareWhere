@@ -89,9 +89,7 @@ pub fn clearurls() -> &'static Catalog {
 
 /// ShareWhere's own rule layer, applied after the vendored catalog.
 pub fn custom() -> &'static Catalog {
-    CUSTOM.get_or_init(|| {
-        serde_json::from_str(CUSTOM_JSON).expect("sharewhere rules must parse")
-    })
+    CUSTOM.get_or_init(|| serde_json::from_str(CUSTOM_JSON).expect("sharewhere rules must parse"))
 }
 
 /// Which catalog a candidate provider came from.
@@ -112,7 +110,10 @@ pub struct Candidate {
     pub global: bool,
 }
 
-fn lookup(index: &'static [(&'static str, &'static [&'static str])], label: &str) -> &'static [&'static str] {
+fn lookup(
+    index: &'static [(&'static str, &'static [&'static str])],
+    label: &str,
+) -> &'static [&'static str] {
     match index.binary_search_by(|(k, _)| (*k).cmp(label)) {
         Ok(i) => index[i].1,
         Err(_) => &[],
@@ -128,7 +129,11 @@ fn collect(
     host: &str,
 ) {
     for name in global {
-        out.push(Candidate { source, name, global: true });
+        out.push(Candidate {
+            source,
+            name,
+            global: true,
+        });
     }
     let host = host.to_ascii_lowercase();
     for label in host.split('.') {
@@ -137,12 +142,20 @@ fn collect(
         }
         for name in lookup(index, label) {
             if !out.iter().any(|c| c.source == source && c.name == *name) {
-                out.push(Candidate { source, name, global: false });
+                out.push(Candidate {
+                    source,
+                    name,
+                    global: false,
+                });
             }
         }
     }
     for name in residue {
-        out.push(Candidate { source, name, global: false });
+        out.push(Candidate {
+            source,
+            name,
+            global: false,
+        });
     }
 }
 

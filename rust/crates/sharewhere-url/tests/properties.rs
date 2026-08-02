@@ -20,14 +20,13 @@ fn url_strategy() -> impl Strategy<Value = String> {
         Just("open.spotify.com".to_string()),
         "[a-z]{3,10}\\.(com|org|net|co\\.uk)",
     ];
-    let path = prop::collection::vec("[a-zA-Z0-9_-]{1,12}", 0..4)
-        .prop_map(|segments| {
-            if segments.is_empty() {
-                String::new()
-            } else {
-                format!("/{}", segments.join("/"))
-            }
-        });
+    let path = prop::collection::vec("[a-zA-Z0-9_-]{1,12}", 0..4).prop_map(|segments| {
+        if segments.is_empty() {
+            String::new()
+        } else {
+            format!("/{}", segments.join("/"))
+        }
+    });
     let params = prop::collection::vec(
         (
             prop_oneof![
@@ -59,8 +58,7 @@ fn url_strategy() -> impl Strategy<Value = String> {
         }
     });
 
-    (scheme, host, path, params)
-        .prop_map(|(s, h, p, q)| format!("{s}://{h}{p}{q}"))
+    (scheme, host, path, params).prop_map(|(s, h, p, q)| format!("{s}://{h}{p}{q}"))
 }
 
 /// Parameter keys present in a URL string, without normalising anything.

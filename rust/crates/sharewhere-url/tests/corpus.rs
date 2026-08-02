@@ -15,7 +15,10 @@ struct Case {
 }
 
 fn corpus() -> Vec<Case> {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/dirty_urls.jsonl");
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../testdata/dirty_urls.jsonl"
+    );
     let contents = std::fs::read_to_string(path)
         .unwrap_or_else(|e| panic!("cannot read corpus at {path}: {e}"));
 

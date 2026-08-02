@@ -23,7 +23,7 @@ use sharewhere_rules::Candidate;
 use url::Url;
 
 use crate::compiled::{self, CompiledProvider};
-use crate::types::{Error, RemovalKind, RemovedParam, Sanitized, SanitizeOptions};
+use crate::types::{Error, RemovalKind, RemovedParam, SanitizeOptions, Sanitized};
 
 /// Inputs beyond this are rejected. Bounds the cost of whole-URL regex
 /// replacement on adversarial input; the longest real share-sheet URLs are a
@@ -160,7 +160,11 @@ fn apply_once(
         }
     }
 
-    Ok(if changed { Step::Changed(cur) } else { Step::Same })
+    Ok(if changed {
+        Step::Changed(cur)
+    } else {
+        Step::Same
+    })
 }
 
 /// Whole-URL rewrites. This is what strips Amazon's `/ref=…` path segment.
@@ -215,9 +219,9 @@ fn apply_param_rules(
     let parts = split_url(cur);
     let mut changed = false;
 
-    let new_query = parts.query.and_then(|q| {
-        filter_params(q, compiled, candidate, preserved, opts, acc)
-    });
+    let new_query = parts
+        .query
+        .and_then(|q| filter_params(q, compiled, candidate, preserved, opts, acc));
     // Only touch the fragment when it actually looks like `k=v`; a plain
     // anchor such as `#installation` must be left alone.
     let new_fragment = parts
