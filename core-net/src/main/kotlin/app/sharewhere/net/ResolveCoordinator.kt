@@ -28,9 +28,21 @@ import uniffi.sharewhere.Step
  * That duplication is deliberate: the redirect target is chosen by whoever
  * controls the link, so both layers verify it.
  */
-class ResolveCoordinator(
-    private val client: OkHttpClient = defaultClient(),
+class ResolveCoordinator internal constructor(
+    private val client: OkHttpClient,
 ) {
+
+    /**
+     * The constructor consumers use.
+     *
+     * The client-injecting one is `internal` on purpose: OkHttp is an
+     * `implementation` dependency of this module, so it is not on a consumer's
+     * compile classpath. Exposing an `OkHttpClient` in the public signature —
+     * even only as a default argument — makes `app` fail to compile with
+     * "Cannot access class 'okhttp3.OkHttpClient'". Keeping the transport
+     * genuinely private is the entire point of this module.
+     */
+    constructor() : this(defaultClient())
 
     suspend fun resolve(input: String, options: Options): Outcome =
         withContext(Dispatchers.IO) {

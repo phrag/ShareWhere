@@ -144,6 +144,18 @@ cargo install cargo-ndk --locked
 ./gradlew assembleOfflineDebug
 ```
 
+**Without an Android SDK**, a useful amount is still checkable locally. The
+generated UniFFI bindings, `core-net`'s `ResolveCoordinator` and the
+`LinkResolver` seam use no Android APIs at all — only JNA, OkHttp, coroutines
+and the JDK — so they compile in a plain JVM Gradle project.
+
+Mirror the real module boundaries when you do this, with OkHttp as an
+`implementation` dependency of the `net` module and absent from `app`. A single
+flat module with every dependency on the classpath will compile code that then
+fails in the real build: that is exactly how an `OkHttpClient` default argument
+leaked into `ResolveCoordinator`'s public signature and broke only the
+`standard` flavor.
+
 ## Current state
 
 | | |
