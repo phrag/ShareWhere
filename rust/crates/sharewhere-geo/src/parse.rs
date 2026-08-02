@@ -140,6 +140,42 @@ pub fn parse_location(input: &str) -> LocationParse {
     LocationParse::NotALocation
 }
 
+/// Dig a location out of an HTML page body.
+///
+/// The last resort when a short link resolves to a page whose URL still carries
+/// no coordinates. Kept here, in Rust, so the caller only ever moves bytes and
+/// never parses anything — the body is attacker-influenced content.
+///
+/// Deliberately pattern-matching rather than real HTML parsing: we are looking
+/// for a coordinate pair in a `data=` blob, a canonical link or an `og:image`
+/// URL, all of which are plain text. A DOM parser would be a large dependency
+/// and a much larger attack surface for no gain.
+pub fn extract_location_from_html(body: &str) -> Option<GeoPoint> {
+    // Cap the scan: a hostile page could otherwise make us walk megabytes.
+    let body = &body[..body.len().min(256 * 1024)];
+
+    if let Some(captures) = google_data().captures(body) {
+        let point = GeoPoint::new(
+            captures.get(1)?.as_str().parse().ok()?,
+            captures.get(2)?.as_str().parse().ok()?,
+        );
+        if point.is_valid() {
+            return Some(point);
+        }
+    }
+    if let Some(captures) = google_at().captures(body) {
+        let point = GeoPoint::new(
+            captures.get(1)?.as_str().parse().ok()?,
+            captures.get(2)?.as_str().parse().ok()?,
+        )
+        .with_zoom(captures.get(3).and_then(|z| z.as_str().parse().ok()));
+        if point.is_valid() {
+            return Some(point);
+        }
+    }
+    None
+}
+
 /// Pull the first `geo:`, `om:` or `http(s):` token out of free text.
 fn first_token_with_scheme(text: &str) -> Option<String> {
     for token in text.split_whitespace() {

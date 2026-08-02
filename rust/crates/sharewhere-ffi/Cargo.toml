@@ -1,5 +1,6 @@
 [package]
 name = "sharewhere-ffi"
+description = "UniFFI bindings for the ShareWhere core"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,4 +8,22 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 
+[lib]
+# cdylib for Android (loaded via JNA), staticlib for a future iOS target,
+# rlib so the crate's own tests can link against it.
+crate-type = ["cdylib", "staticlib", "rlib"]
+name = "sharewhere"
+
 [dependencies]
+sharewhere-core = { workspace = true }
+thiserror = "2"
+uniffi = { workspace = true }
+
+# The binary the Gradle build invokes to generate Kotlin bindings.
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+bindgen = ["uniffi/cli"]
