@@ -104,27 +104,40 @@ val verifyOfflineFlavorHasNoPermissions by tasks.registering {
     group = "verification"
     description = "Fails if the offline flavor's merged manifest declares any permission."
 
-    val manifests = layout.buildDirectory.dir("intermediates/merged_manifest/offline")
-    inputs.dir(manifests).optional(true)
-
+    // Discovered by walking rather than hard-coded, because the intermediates
+    // layout is an AGP implementation detail that moves between versions
+    // (merged_manifest vs merged_manifests, and the task-name subdirectory).
+    val buildDir = layout.buildDirectory
     doLast {
-        val files = manifests.get().asFile.walkTopDown().filter { it.name == "AndroidManifest.xml" }
-        var checked = 0
-        files.forEach { manifest ->
-            checked++
+        val manifests = buildDir.get().asFile.resolve("intermediates")
+            .walkTopDown()
+            .filter { it.name == "AndroidManifest.xml" }
+            .filter { it.path.contains("offline", ignoreCase = true) }
+            .filter { it.path.contains("merged_manifest", ignoreCase = true) }
+            .toList()
+
+        check(manifests.isNotEmpty()) {
+            "No merged offline manifest found under ${buildDir.get().asFile}/intermediates -- " +
+                "assemble the offline flavor first, or AGP has moved the output again."
+        }
+
+        manifests.forEach { manifest ->
             val declared = Regex("""<uses-permission[^>]*android:name="([^"]+)"""")
                 .findAll(manifest.readText())
                 .map { it.groupValues[1] }
                 .toList()
             check(declared.isEmpty()) {
-                "The offline flavor must declare no permissions, but ${manifest.name} has: $declared"
+                "The offline flavor must declare no permissions, but ${manifest.path} has: $declared"
             }
         }
-        check(checked > 0) { "No merged manifest found to verify -- assemble the offline flavor first." }
-        logger.lifecycle("offline flavor declares no permissions ($checked manifest(s) checked)")
+        logger.lifecycle(
+            "offline flavor declares no permissions (${manifests.size} manifest(s) checked)",
+        )
     }
 }
 
-tasks.matching { it.name.startsWith("assembleOffline") }.configureEach {
-    finalizedBy(verifyOfflineFlavorHasNoPermissions)
-}
+// Deliberately NOT wired with finalizedBy(assembleOffline*): a failing check
+// would then also fail the assemble task, and CI would have no APK to publish.
+// The build is more useful than the assertion is urgent, so CI runs this as its
+// own step after the artifact has been uploaded.
+tasks.named("check") { dependsOn(verifyOfflineFlavorHasNoPermissions) }

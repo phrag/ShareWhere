@@ -33,16 +33,9 @@ jobs:
 
       - run: ./gradlew assembleOfflineDebug assembleStandardDebug
 
-      # The core product claim, asserted rather than promised: the offline
-      # flavor's merged manifest must declare no permissions at all.
-      - run: ./gradlew verifyOfflineFlavorHasNoPermissions
-
-      # JVM tests run against the host-built .so, so binding drift is caught in
-      # seconds without an emulator.
-      - run: ./gradlew test
-
-      - run: ./gradlew lint
-
+      # Publish the build BEFORE running the checks. A failing assertion should
+      # not cost you an installable APK that compiled perfectly well.
+      #
       # Debug-signed, so they install straight from a phone without any
       # keystore secrets. `offline` is the one to install: no permissions at
       # all. `standard` adds INTERNET for short-link expansion.
@@ -63,6 +56,16 @@ jobs:
           path: artifacts/*.apk
           if-no-files-found: error
           retention-days: 30
+
+      # The core product claim, asserted rather than promised: the offline
+      # flavor's merged manifest must declare no permissions at all.
+      - run: ./gradlew verifyOfflineFlavorHasNoPermissions
+
+      # JVM tests run against the host-built .so, so binding drift is caught in
+      # seconds without an emulator.
+      - run: ./gradlew test
+
+      - run: ./gradlew lint
 
   instrumentation:
     runs-on: ubuntu-latest

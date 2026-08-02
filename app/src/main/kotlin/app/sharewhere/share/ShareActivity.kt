@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.material3.MaterialTheme
 import androidx.lifecycle.lifecycleScope
 import app.sharewhere.BuildConfig
 import app.sharewhere.R
@@ -96,16 +97,20 @@ class ShareActivity : ComponentActivity() {
         }
 
         setContent {
-            SharePreviewScreen(
-                original = original,
-                outcome = outcome,
-                networkAvailable = BuildConfig.NETWORK_AVAILABLE,
-                onCopy = { text, sensitive ->
-                    Clipboard.copy(this, getString(R.string.clip_label_link), text, sensitive)
-                },
-                onShare = { text -> reshare(text) },
-                onDismiss = { finish() },
-            )
+            // Material3 components read their colours and typography from this;
+            // without it they fall back to bare defaults and look wrong.
+            MaterialTheme {
+                SharePreviewScreen(
+                    original = original,
+                    outcome = outcome,
+                    networkAvailable = BuildConfig.NETWORK_AVAILABLE,
+                    onCopy = { text, sensitive ->
+                        Clipboard.copy(this, getString(R.string.clip_label_link), text, sensitive)
+                    },
+                    onShare = { text -> reshare(text) },
+                    onDismiss = { finish() },
+                )
+            }
         }
     }
 

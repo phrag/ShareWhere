@@ -5,8 +5,9 @@ location and you get every map format at once.
 
 Android app, Rust core, GPL-3.0-or-later.
 
-> **Status: the Rust core is complete and tested; the Android layer is written
-> but has not been compiled yet.** See [Current state](#current-state).
+> **Status: the Rust core is complete and tested. The Android layer builds in
+> CI.** See [Current state](#current-state) and
+> [Getting a build](#getting-a-build).
 
 ## What it does
 
@@ -94,6 +95,26 @@ core says what to fetch and how to read the answer; `core-net` moves the bytes.
 Each request carries its own policy — allowed hosts, no redirect following, no
 cookies, a 64 KB cap — and both layers enforce it, because the redirect target
 is chosen by whoever controls the link.
+
+## Getting a build
+
+Every push builds both flavors and attaches them to the run. To grab one:
+
+1. Open the [Actions tab](https://github.com/phrag/ShareWhere/actions/workflows/android.yml)
+   and pick the most recent green run — or trigger one yourself with **Run
+   workflow**.
+2. Download the `sharewhere-apks-<sha>` artifact at the bottom of the run page.
+3. Unzip and install `app-offline-debug.apk`.
+
+The run summary lists each APK's size and SHA-256 so you can check what you got.
+
+**Install `offline` unless you specifically want short-link expansion.** It is
+the build with no permissions at all. `standard` adds `INTERNET`, used only
+behind the per-link consent prompt.
+
+These are **debug-signed**, so they install without any keystore setup, but they
+will not upgrade over a release-signed build later and are not suitable for
+distribution. Signed release builds come with the F-Droid work in v1.0.
 
 ## Building
 
