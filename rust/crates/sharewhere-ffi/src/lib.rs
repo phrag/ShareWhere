@@ -155,10 +155,15 @@ fn map_sanitized(value: core::Sanitized) -> Sanitized {
     }
 }
 
+/// NOTE: no field here may be called `message` or `cause`. UniFFI maps error
+/// variants onto Kotlin classes deriving from `Throwable`, which already has
+/// both, and the generated code then fails to compile with "hides member of
+/// supertype 'Throwable'". The compiler points at generated code, so the cause
+/// is not obvious from the error.
 #[derive(uniffi::Error, Debug, thiserror::Error)]
 pub enum ShareWhereError {
-    #[error("not a valid URL: {message}")]
-    InvalidUrl { message: String },
+    #[error("not a valid URL: {detail}")]
+    InvalidUrl { detail: String },
     #[error("unsupported scheme: {scheme}")]
     UnsupportedScheme { scheme: String },
     #[error("input is {length} bytes, maximum is {maximum}")]
@@ -170,7 +175,7 @@ pub enum ShareWhereError {
 impl From<core::UrlError> for ShareWhereError {
     fn from(value: core::UrlError) -> Self {
         match value {
-            core::UrlError::InvalidUrl(message) => ShareWhereError::InvalidUrl { message },
+            core::UrlError::InvalidUrl(detail) => ShareWhereError::InvalidUrl { detail },
             core::UrlError::UnsupportedScheme(scheme) => {
                 ShareWhereError::UnsupportedScheme { scheme }
             }

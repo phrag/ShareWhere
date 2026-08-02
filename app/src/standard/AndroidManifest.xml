@@ -8,7 +8,10 @@
     rather than a FetchRequest until it is set.
 
     If you would rather the capability simply not exist, install the offline
-    flavor -- it declares no permissions at all.
+    flavor, which declares no permissions at all.
+
+    (Note for future edits: a double hyphen is illegal inside an XML comment.
+    Writing one here fails the manifest merger with a bare "Error parsing".)
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
