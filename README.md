@@ -151,13 +151,15 @@ cargo install cargo-ndk --locked
 | Rust core | complete — 75 tests, clippy and rustfmt clean |
 | Plus Codes | matches all 302 upstream reference vectors exactly |
 | `ge0` codec | matches Organic Maps' own test vectors |
-| UniFFI bindings | verified to generate from the built library |
-| Android app | **written, not yet compiled** — needs an SDK |
+| UniFFI bindings | generate and compile against JNA on the JVM |
+| Android app | builds green in CI, both flavors, APKs published per run |
+| On a real device | **not yet tried** |
 
-The Android half was authored without an SDK available, so expect the usual
-first-build friction: a missing launcher icon, Gradle wrapper, and whatever the
-compiler finds. Nothing there is load-bearing on the logic, which is all in Rust
-and all tested.
+Everything above is verified by machine. What nobody has done yet is install the
+APK and share a link into it, so the end-to-end behaviour — do both share
+targets appear, does the clipboard write land, does the preview sheet read
+sensibly — is still unconfirmed. That is the next thing worth doing, and the
+most likely place for a surprise.
 
 ### Roadmap
 
