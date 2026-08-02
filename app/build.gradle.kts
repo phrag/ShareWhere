@@ -94,6 +94,26 @@ dependencies {
 }
 
 /**
+ * Permissions the build tooling injects, which grant ShareWhere nothing.
+ *
+ * `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` is defined by androidx.core and
+ * namespaced under our own application id. It is `signature` protection level,
+ * so only ShareWhere itself can ever hold it, and it exists solely so
+ * androidx can guard a broadcast receiver it registers at runtime against
+ * other apps on pre-Android-13 devices. It asks the system for no capability
+ * and never appears in the permission list a user sees.
+ *
+ * It is allow-listed rather than stripped with `tools:node="remove"` because
+ * removing it would break any dependency that does register such a receiver,
+ * and that failure would only show up at runtime on a device -- which is not
+ * something this project can currently test.
+ */
+private val autoInjected = setOf(
+    "app.sharewhere.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+    "app.sharewhere.standard.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+)
+
+/**
  * The privacy regression test.
  *
  * "We ask for no permissions" is the app's central claim, and the kind of thing
@@ -125,13 +145,15 @@ val verifyOfflineFlavorHasNoPermissions by tasks.registering {
             val declared = Regex("""<uses-permission[^>]*android:name="([^"]+)"""")
                 .findAll(manifest.readText())
                 .map { it.groupValues[1] }
+                .filterNot { it in autoInjected }
                 .toList()
             check(declared.isEmpty()) {
-                "The offline flavor must declare no permissions, but ${manifest.path} has: $declared"
+                "The offline flavor must declare no capability-granting permissions, " +
+                    "but ${manifest.path} has: $declared"
             }
         }
         logger.lifecycle(
-            "offline flavor declares no permissions (${manifests.size} manifest(s) checked)",
+            "offline flavor grants itself no capabilities (${manifests.size} manifest(s) checked)",
         )
     }
 }

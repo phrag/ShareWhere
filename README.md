@@ -43,14 +43,23 @@ lookup. Plus Codes do the same job entirely offline, so that is what ShareWhere
 uses. A `///word.word.word` is recognised and explained rather than silently
 failing.
 
-**No silent network access.** The default build declares **no permissions at
-all** — not even `INTERNET`. That is verified in CI against the merged manifest,
-so it is checkable rather than promised:
+**No silent network access.** The default build asks the system for **no
+capability whatsoever** — not even `INTERNET`. Verified in CI against the merged
+manifest, so it is checkable rather than promised:
 
 ```
 ./gradlew assembleOfflineRelease
-apkanalyzer manifest permissions app-offline-release.apk   # prints nothing
+apkanalyzer manifest permissions app-offline-release.apk
 ```
+
+That prints exactly one line, and it is worth being precise about it:
+`app.sharewhere.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. That permission is
+defined by androidx under our own application id at `signature` protection
+level, meaning only ShareWhere can ever hold it. Its entire job is to stop
+other apps talking to a broadcast receiver androidx registers internally on
+pre-Android-13 devices. It grants ShareWhere nothing, and Android does not show
+it to users. Every *capability* permission — internet, location, storage,
+contacts — is absent, and CI fails if one appears.
 
 Google Maps share links (`maps.app.goo.gl/…`) carry no coordinates at all, so
 they genuinely cannot be resolved offline. The `standard` build can follow one,

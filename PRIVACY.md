@@ -3,8 +3,9 @@
 ## The short version
 
 ShareWhere collects nothing, sends nothing, and stores nothing but your
-settings. The `offline` build declares no Android permissions at all, which you
-can check yourself without trusting this document.
+settings. The `offline` build asks Android for no capability at all — no
+internet, no location, no storage — which you can check yourself without
+trusting this document.
 
 ## What leaves your device
 
@@ -57,8 +58,25 @@ logcat, where any app with the right permission could read it.
 apkanalyzer manifest permissions app/build/outputs/apk/offline/release/*.apk
 ```
 
-That prints nothing. CI asserts the same thing on every build against the merged
-manifest, so it cannot regress by accident.
+That prints one line, and it is not a capability:
+
+```
+app.sharewhere.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+```
+
+androidx defines this permission under ShareWhere's own application id, at
+`signature` protection level — so no other app can ever be granted it. It exists
+only to stop other apps reaching a broadcast receiver androidx registers
+internally on pre-Android-13 devices. It asks the system for nothing, and
+Android never shows it to users.
+
+Everything that *would* be a capability — `INTERNET`, location, storage,
+contacts — is absent. CI asserts this on every build against the merged
+manifest, so a dependency cannot quietly introduce one.
+
+An earlier version of this document said the offline build declares no
+permissions at all. That was written before the app had ever been built, and
+the merged manifest proved it wrong; this is the corrected claim.
 
 For the `standard` build, the request policy is in
 `rust/crates/sharewhere-core/src/session.rs` and its enforcement is in
