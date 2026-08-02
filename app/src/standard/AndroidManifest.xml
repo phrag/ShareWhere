@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The only difference between the standard and offline flavors.
+
+    INTERNET is needed so a short link can be expanded *after* the user taps
+    through the per-link consent prompt. It is never used without that tap:
+    Options.allowNetwork defaults to false, and the core returns NeedsConsent
+    rather than a FetchRequest until it is set.
+
+    If you would rather the capability simply not exist, install the offline
+    flavor -- it declares no permissions at all.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>

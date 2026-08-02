@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Note what is NOT here: no <uses-permission> at all.
+
+    The offline flavor ships exactly this. The standard flavor adds INTERNET in
+    src/standard/AndroidManifest.xml, and nothing else. There is no analytics
+    SDK, no crash reporter and no Play Services, so there is nothing else to
+    declare.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:name=".ShareWhereApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.ShareWhere">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            The share target. Translucent and historyless so "Clean & copy" can
+            finish without ever showing a screen: the whole point is that it
+            feels instantaneous.
+        -->
+        <activity
+            android:name=".share.ShareActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.ShareWhere.Transparent">
+
+            <intent-filter android:label="@string/share_target_clean">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <!--
+                Clean-in-place inside any text field. Highlight a URL anywhere
+                in the OS, pick ShareWhere from the selection menu, and the text
+                is replaced with the cleaned version. Costs three lines and is
+                the app's best hidden feature.
+            -->
+            <intent-filter android:label="@string/share_target_clean">
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            Map-link handlers ship DISABLED and are switched on from Settings.
+
+            An app that grabs geo: and omaps.app links on first install hijacks
+            the user's map navigation without being asked, which is hostile
+            regardless of how good the intent is. Enabled at runtime with
+            PackageManager.setComponentEnabledSetting.
+        -->
+        <activity-alias
+            android:name=".share.GeoLinkHandler"
+            android:enabled="false"
+            android:exported="true"
+            android:targetActivity=".share.ShareActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="geo" />
+                <data android:scheme="om" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".share.MapWebLinkHandler"
+            android:enabled="false"
+            android:exported="true"
+            android:targetActivity=".share.ShareActivity">
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="omaps.app" />
+                <data android:scheme="https" android:host="maps.app.goo.gl" />
+            </intent-filter>
+        </activity-alias>
+
+        <!--
+            Puts both actions in the direct-share row at the top of the sheet
+            rather than buried in the app grid.
+        -->
+        <meta-data
+            android:name="android.app.shortcuts"
+            android:resource="@xml/shortcuts" />
+    </application>
+</manifest>

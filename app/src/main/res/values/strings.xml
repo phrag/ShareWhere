@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ShareWhere</string>
+
+    <string name="share_target_clean">Clean &amp; copy</string>
+    <string name="share_target_clean_long">Strip trackers and copy the link</string>
+    <string name="share_target_preview">Clean &amp; share…</string>
+    <string name="share_target_preview_long">See what was removed, then share</string>
+
+    <string name="share_cleaned">Share cleaned link</string>
+    <string name="clip_label_link">Cleaned link</string>
+    <string name="clip_label_location">Location</string>
+
+    <string name="copied_cleaned">Cleaned and copied</string>
+    <string name="copied_unchanged">Already clean, copied</string>
+</resources>

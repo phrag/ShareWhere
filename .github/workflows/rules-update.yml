@@ -1,0 +1,72 @@
+name: Rule catalog update
+
+# The vendored ClearURLs catalog goes stale as sites change their tracking
+# parameters. This refreshes it weekly, runs the full suite against the new
+# data, and opens a PR only if everything still passes.
+#
+# A human merges. Deliberately: a rule change can break a link, and the golden
+# corpus is what catches that -- but only if someone reads the diff. This is
+# also why runtime rule downloads are a later nicety rather than a dependency.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Fetch the upstream catalog
+        run: |
+          curl -fsSL --retry 3 \
+            https://raw.githubusercontent.com/ClearURLs/Rules/master/data.min.json \
+            -o rust/crates/sharewhere-rules/assets/clearurls.min.json
+          python3 -c "import json,sys; json.load(open('rust/crates/sharewhere-rules/assets/clearurls.min.json'))"
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The build fails if host-index coverage drops below 90%, and the
+      # conformance test fails if any new pattern will not compile under the
+      # Rust regex crate. Both are the point of doing this in CI.
+      - name: Verify against the new catalog
+        if: steps.diff.outputs.changed == 'true'
+        working-directory: rust
+        run: cargo test --workspace
+
+      - name: Open a pull request
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/clearurls-catalog-refresh
+          title: "Refresh the vendored ClearURLs catalog"
+          commit-message: "Refresh the vendored ClearURLs catalog"
+          body: |
+            Weekly refresh of `clearurls.min.json` from upstream (LGPL-3.0).
+
+            The full suite passed against the new data, which means every
+            pattern still compiles under the Rust `regex` crate and the golden
+            corpus still produces the expected output.
+
+            **Read the diff before merging.** A rule that is too broad breaks
+            real links, and the corpus only covers the cases someone thought to
+            add. If this refresh strips something load-bearing, add the case to
+            `rust/testdata/dirty_urls.jsonl` and the parameter to the `preserve`
+            safelist in `sharewhere.rules.json`.

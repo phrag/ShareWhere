@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ShareWhere" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!--
+        The share target renders over whatever app the user shared from, so
+        "Clean &amp; copy" can finish without a screen ever appearing.
+    -->
+    <style name="Theme.ShareWhere.Transparent" parent="Theme.ShareWhere">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+    </style>
+</resources>

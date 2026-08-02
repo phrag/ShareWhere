@@ -1,0 +1,45 @@
+[graph]
+targets = [
+    { triple = "aarch64-linux-android" },
+    { triple = "armv7-linux-androideabi" },
+    { triple = "x86_64-linux-android" },
+    { triple = "x86_64-unknown-linux-gnu" },
+]
+
+[advisories]
+yanked = "deny"
+
+[licenses]
+# ShareWhere is GPL-3.0-or-later. LGPL-3.0 is here for the vendored ClearURLs
+# catalog; everything else must be permissive so the combined work stays
+# distributable.
+allow = [
+    "GPL-3.0",
+    "LGPL-3.0",
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "MPL-2.0",
+]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "warn"
+# Nothing in the core may reach the network. If an HTTP client ever appears in
+# this dependency graph, something has gone badly wrong -- transport belongs in
+# the Kotlin `core-net` module, behind the policy the core hands it.
+deny = [
+    { name = "reqwest" },
+    { name = "hyper" },
+    { name = "ureq" },
+    { name = "curl" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
