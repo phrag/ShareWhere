@@ -1,0 +1,25 @@
+# Rust
+/rust/target/
+**/*.rs.bk
+
+# Gradle / Android
+.gradle/
+build/
+local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+captures/
+.cxx/
+
+# Generated UniFFI bindings — always produced at build time, never committed
+core-rust/src/main/java/uniffi/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store

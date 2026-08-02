@@ -1,0 +1,19 @@
+[package]
+name = "sharewhere-rules"
+description = "Rule catalog for ShareWhere: vendored ClearURLs data plus ShareWhere's own layer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+indexmap = { workspace = true }
+serde = { workspace = true }
+# preserve_order keeps providers in catalog order, which the evaluation order
+# depends on.
+serde_json = { workspace = true, features = ["preserve_order"] }
+
+[build-dependencies]
+serde_json = { workspace = true, features = ["preserve_order"] }

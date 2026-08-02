@@ -1,0 +1,209 @@
+{
+  "_comment": [
+    "ShareWhere's own rule layer, applied AFTER the vendored ClearURLs catalog.",
+    "Same provider schema as ClearURLs so one engine handles both.",
+    "This file is GPL-3.0-or-later, unlike assets/clearurls.min.json which is LGPL-3.0.",
+    "Two jobs: (1) cover gaps upstream has, most importantly Google Maps, which",
+    "ClearURLs does not touch at all; (2) carry the `preserve` safelist that stops",
+    "us stripping a parameter the link actually needs."
+  ],
+  "version": "2026-08-02",
+  "providers": {
+    "googlemaps": {
+      "urlPattern": "^https?:\\/\\/(?:[a-z0-9-]+\\.)*?google(?:\\.[a-z]{2,}){1,}\\/maps",
+      "completeProvider": false,
+      "forceRedirection": false,
+      "rules": [
+        "entry",
+        "g_ep",
+        "g_st",
+        "ved",
+        "ei",
+        "sa",
+        "shorturl",
+        "dg",
+        "hl",
+        "gl",
+        "ucbcb",
+        "coh",
+        "geocode",
+        "opi"
+      ],
+      "rawRules": [],
+      "referralMarketing": [],
+      "exceptions": [],
+      "redirections": []
+    },
+    "instagram_extra": {
+      "urlPattern": "^https?:\\/\\/(?:[a-z0-9-]+\\.)*?instagram\\.com",
+      "completeProvider": false,
+      "forceRedirection": false,
+      "rules": ["img_index", "hl"],
+      "rawRules": [],
+      "referralMarketing": [],
+      "exceptions": [],
+      "redirections": []
+    },
+    "tiktok": {
+      "urlPattern": "^https?:\\/\\/(?:[a-z0-9-]+\\.)*?tiktok\\.com",
+      "completeProvider": false,
+      "forceRedirection": false,
+      "rules": [
+        "is_from_webapp",
+        "sender_device",
+        "sender_web_id",
+        "web_id",
+        "_r",
+        "_t",
+        "refer",
+        "checksum",
+        "share_app_id",
+        "share_link_id",
+        "share_item_id",
+        "tt_from",
+        "social_share_type",
+        "source",
+        "enter_from"
+      ],
+      "rawRules": [],
+      "referralMarketing": [],
+      "exceptions": [],
+      "redirections": []
+    },
+    "x_extra": {
+      "urlPattern": "^https?:\\/\\/(?:[a-z0-9-]+\\.)*?(?:x\\.com|twitter\\.com)",
+      "completeProvider": false,
+      "forceRedirection": false,
+      "rules": ["t", "s", "ref_src", "ref_url", "twclid"],
+      "rawRules": [],
+      "referralMarketing": [],
+      "exceptions": [],
+      "redirections": []
+    },
+    "youtube_extra": {
+      "urlPattern": "^https?:\\/\\/(?:[a-z0-9-]+\\.)*?(?:youtube\\.com|youtu\\.be)",
+      "completeProvider": false,
+      "forceRedirection": false,
+      "rules": ["si", "pp", "feature", "kw", "ab_channel"],
+      "rawRules": [],
+      "referralMarketing": [],
+      "exceptions": [],
+      "redirections": []
+    },
+    "spotify": {
+      "urlPattern": "^https?:\\/\\/(?:[a-z0-9-]+\\.)*?spotify\\.com",
+      "completeProvider": false,
+      "forceRedirection": false,
+      "rules": ["si", "nd", "_branch_match_id", "_branch_referrer", "context"],
+      "rawRules": [],
+      "referralMarketing": [],
+      "exceptions": [],
+      "redirections": []
+    },
+    "reddit_extra": {
+      "urlPattern": "^https?:\\/\\/(?:[a-z0-9-]+\\.)*?reddit\\.com",
+      "completeProvider": false,
+      "forceRedirection": false,
+      "rules": [
+        "share_id",
+        "correlation_id",
+        "ref_source",
+        "ref_campaign",
+        "rdt",
+        "chainedPosts",
+        "post_fullname",
+        "rdtc"
+      ],
+      "rawRules": [],
+      "referralMarketing": [],
+      "exceptions": [],
+      "redirections": []
+    },
+    "linkedin_extra": {
+      "urlPattern": "^https?:\\/\\/(?:[a-z0-9-]+\\.)*?linkedin\\.com",
+      "completeProvider": false,
+      "forceRedirection": false,
+      "rules": [
+        "trackingId",
+        "lipi",
+        "licu",
+        "refId",
+        "midToken",
+        "midSig",
+        "trk",
+        "trkEmail",
+        "eid",
+        "originalSubdomain"
+      ],
+      "rawRules": [],
+      "referralMarketing": [],
+      "exceptions": [],
+      "redirections": []
+    },
+    "aliexpress_extra": {
+      "urlPattern": "^https?:\\/\\/(?:[a-z0-9-]+\\.)*?aliexpress(?:\\.[a-z]{2,}){1,}",
+      "completeProvider": false,
+      "forceRedirection": false,
+      "rules": [
+        "spm",
+        "aff_[a-z_]*",
+        "algo_[a-z_]*",
+        "btsid",
+        "ws_ab_test",
+        "pdp_[a-z_]*",
+        "gatewayAdapt",
+        "sk",
+        "terminal_id"
+      ],
+      "rawRules": [],
+      "referralMarketing": ["aff_platform", "aff_trace_key"],
+      "exceptions": [],
+      "redirections": []
+    },
+    "threads": {
+      "urlPattern": "^https?:\\/\\/(?:[a-z0-9-]+\\.)*?threads\\.(?:net|com)",
+      "completeProvider": false,
+      "forceRedirection": false,
+      "rules": ["xmt", "igshid"],
+      "rawRules": [],
+      "referralMarketing": [],
+      "exceptions": [],
+      "redirections": []
+    },
+    "ebay_extra": {
+      "urlPattern": "^https?:\\/\\/(?:[a-z0-9-]+\\.)*?ebay(?:\\.[a-z]{2,}){1,}",
+      "completeProvider": false,
+      "forceRedirection": false,
+      "rules": ["_trkparms", "_trksid", "hash", "amdata", "epid", "var"],
+      "rawRules": [],
+      "referralMarketing": ["mkcid", "mkrid", "campid", "toolid", "customid", "mkevt"],
+      "exceptions": [],
+      "redirections": []
+    }
+  },
+
+  "_preserve_comment": [
+    "The never-remove safelist, applied last, after every other rule.",
+    "Keys are host suffixes; a URL whose host equals the key or ends in '.'+key matches.",
+    "If any rule stripped one of these parameters, it gets put back.",
+    "This is what stops the app silently breaking a link, which is the one",
+    "failure mode that would destroy trust in it."
+  ],
+  "preserve": {
+    "youtube.com": ["v", "t", "list", "index", "start", "end", "time_continue"],
+    "youtu.be": ["t", "list", "index", "start", "end"],
+    "amazon.com": ["k", "node", "i", "rh"],
+    "amazon.co.uk": ["k", "node", "i", "rh"],
+    "amazon.de": ["k", "node", "i", "rh"],
+    "google.com": ["q", "api", "query", "tbm", "ll", "z", "daddr", "saddr"],
+    "openstreetmap.org": ["mlat", "mlon", "zoom", "layers"],
+    "github.com": ["tab", "q", "since", "until"],
+    "stackoverflow.com": ["q", "tab"],
+    "wikipedia.org": ["search", "title", "action", "oldid", "diff"],
+    "ebay.com": ["_nkw", "_sacat"],
+    "reddit.com": ["sort", "t", "context"],
+    "twitch.tv": ["t"],
+    "spotify.com": ["highlight"],
+    "maps.apple.com": ["ll", "q", "z", "address"]
+  }
+}

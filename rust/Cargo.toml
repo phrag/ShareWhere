@@ -1,0 +1,48 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/sharewhere-rules",
+    "crates/sharewhere-url",
+    "crates/sharewhere-geo",
+    "crates/sharewhere-core",
+    "crates/sharewhere-ffi",
+    "crates/sharewhere-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/phrag/ShareWhere"
+authors = ["ShareWhere contributors"]
+
+[workspace.dependencies]
+sharewhere-rules = { path = "crates/sharewhere-rules", version = "0.1.0" }
+sharewhere-url = { path = "crates/sharewhere-url", version = "0.1.0" }
+sharewhere-geo = { path = "crates/sharewhere-geo", version = "0.1.0" }
+sharewhere-core = { path = "crates/sharewhere-core", version = "0.1.0" }
+
+indexmap = { version = "2", features = ["serde"] }
+percent-encoding = "2.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = "2.5"
+
+# Trimmed feature set: the catalog needs unicode-perl (\w, \d) and case folding,
+# but not the full unicode tables. Saves several hundred KB in the .so.
+regex = { version = "1.10", default-features = false, features = [
+    "std",
+    "perf",
+    "unicode-perl",
+    "unicode-case",
+] }
+
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+# NOTE: deliberately NOT panic = "abort". UniFFI relies on catch_unwind to turn
+# panics into FFI errors; aborting would take the whole Android process down.
+panic = "unwind"

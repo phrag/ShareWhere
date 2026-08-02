@@ -1,0 +1,52 @@
+ShareWhere
+Copyright (C) 2026 ShareWhere contributors
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See LICENSE for the full text.
+
+
+================================================================================
+Third-party material bundled with this program
+================================================================================
+
+ClearURLs rule catalog
+----------------------
+File:     rust/crates/sharewhere-rules/assets/clearurls.min.json
+Source:   https://github.com/ClearURLs/Rules  (data.min.json)
+Upstream: https://gitlab.com/ClearURLs/rules
+Licence:  GNU Lesser General Public License, version 3 (LGPL-3.0)
+Copyright (C) Kevin Roebert and the ClearURLs contributors
+
+The file is vendored verbatim and unmodified. It is data, not code: ShareWhere
+implements its own engine in rust/crates/sharewhere-url and does not derive
+from, translate, or copy any ClearURLs source code.
+
+LGPL-3.0 is compatible with this program's GPL-3.0-or-later licence, and the
+combined work is distributed under GPL-3.0-or-later. The catalog itself remains
+available under LGPL-3.0: it can be extracted from the repository at the path
+above, or obtained from the upstream projects listed above.
+
+ShareWhere's own rule layer
+(rust/crates/sharewhere-rules/assets/sharewhere.rules.json) is original work
+under GPL-3.0-or-later and is not part of the ClearURLs catalog, though it
+deliberately reuses the ClearURLs provider schema so one engine can evaluate
+both.
+
+
+Open Location Code (Plus Codes)
+-------------------------------
+The Plus Code implementation in rust/crates/sharewhere-geo is an original
+implementation of the published Open Location Code specification
+(https://github.com/google/open-location-code, Apache-2.0). The specification is
+frozen and the algorithm is not patented. No upstream source code was copied;
+the published reference test vectors are used to verify correctness.
+
+
+Organic Maps ge0 encoding
+-------------------------
+The ge0 short-link codec in rust/crates/sharewhere-geo is an original
+implementation of the encoding used by Organic Maps
+(https://github.com/organicmaps/organicmaps, Apache-2.0), written from the
+format description. No upstream source code was copied.

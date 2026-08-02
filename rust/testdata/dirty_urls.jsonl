@@ -1,0 +1,69 @@
+// Golden corpus. One JSON object per line; `//` lines and blank lines are skipped.
+//   input     what a real app put on the clipboard
+//   expected  exactly what ShareWhere must produce
+//   note      why this case exists — keep it meaningful, it shows up in failures
+//
+// This file is meant to GROW. Every time a real share-sheet link is handled
+// wrongly, add it here first, then fix the engine. Cases where the correct
+// answer is "change nothing" matter as much as the ones that strip something:
+// a sanitiser that mangles working links is worse than no sanitiser.
+
+// --- no-op cases: the engine must not fidget with clean URLs ---
+{"input": "https://example.com", "expected": "https://example.com", "note": "bare host must not gain a trailing slash", "provider": "none"}
+{"input": "https://example.com/", "expected": "https://example.com/", "note": "existing trailing slash is kept", "provider": "none"}
+{"input": "https://example.com/path?a=1&b=2", "expected": "https://example.com/path?a=1&b=2", "note": "unknown params are left alone", "provider": "none"}
+{"input": "https://example.com/path#section", "expected": "https://example.com/path#section", "note": "plain anchor is not treated as a query", "provider": "none"}
+{"input": "https://example.com/p?q=a%20b", "expected": "https://example.com/p?q=a%20b", "note": "percent-encoding is preserved byte for byte, not re-encoded to +", "provider": "none"}
+{"input": "https://example.com/p?a=1&a=2", "expected": "https://example.com/p?a=1&a=2", "note": "repeated keys survive", "provider": "none"}
+{"input": "https://example.com/p?flag", "expected": "https://example.com/p?flag", "note": "valueless parameter survives", "provider": "none"}
+
+// --- globalRules ---
+{"input": "https://en.wikipedia.org/wiki/Foo?utm_source=x", "expected": "https://en.wikipedia.org/wiki/Foo", "note": "utm_source anywhere", "provider": "globalRules"}
+{"input": "https://example.com/a?utm_source=n&utm_medium=e&utm_campaign=c&id=7", "expected": "https://example.com/a?id=7", "note": "several utm_* removed, real param kept", "provider": "globalRules"}
+{"input": "https://example.com/a?fbclid=IwAR0abc", "expected": "https://example.com/a", "note": "lone tracking param leaves no dangling ?", "provider": "globalRules"}
+{"input": "https://example.com/a?gclid=abc&msclkid=def&id=1", "expected": "https://example.com/a?id=1", "note": "ad-click ids from two networks", "provider": "globalRules"}
+{"input": "https://example.com/a?id=1&utm_source=x&ref=newsletter", "expected": "https://example.com/a?id=1", "note": "tracking and referral together, order of survivors preserved", "provider": "globalRules"}
+
+// --- Instagram ---
+{"input": "https://www.instagram.com/p/CxYzAbCdEfG/?igshid=MzRlODBiNWFlZA%3D%3D", "expected": "https://www.instagram.com/p/CxYzAbCdEfG/", "note": "the classic Instagram share param", "provider": "instagram"}
+{"input": "https://www.instagram.com/p/CxYzAbCdEfG/?igshid=abc&img_index=1", "expected": "https://www.instagram.com/p/CxYzAbCdEfG/", "note": "img_index is ShareWhere's addition, upstream misses it", "provider": "instagram_extra"}
+{"input": "https://www.instagram.com/reel/AbC123/?igsh=xyz789", "expected": "https://www.instagram.com/reel/AbC123/", "note": "igsh is the newer form of igshid", "provider": "instagram"}
+
+// --- Amazon ---
+{"input": "https://www.amazon.co.uk/dp/B08N5WRWNW/ref=sr_1_3?crid=2ABCDEF&keywords=usb+hub&qid=1712345678&sprefix=usb&sr=8-3&tag=someaffiliate-21", "expected": "https://www.amazon.co.uk/dp/B08N5WRWNW", "note": "full search-result URL: /ref= path segment plus params plus affiliate tag", "provider": "amazon"}
+{"input": "https://www.amazon.com/dp/B08N5WRWNW?tag=aff-20", "expected": "https://www.amazon.com/dp/B08N5WRWNW", "note": "affiliate tag alone", "provider": "amazon"}
+{"input": "https://www.amazon.com/gp/product/B08N5WRWNW/ref=ppx_yo_dt_b_asin_title", "expected": "https://www.amazon.com/gp/product/B08N5WRWNW", "note": "rawRule strips a path segment, not a query param", "provider": "amazon"}
+{"input": "https://www.amazon.com/s?k=usb+hub", "expected": "https://www.amazon.com/s?k=usb+hub", "note": "SAFELIST: k is the search term, removing it breaks the link", "provider": "preserve"}
+
+// --- YouTube ---
+{"input": "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s&si=AbCdEf123&feature=shared", "expected": "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s", "note": "SAFELIST: v and t are load-bearing, si and feature are not", "provider": "youtube_extra"}
+{"input": "https://youtu.be/dQw4w9WgXcQ?si=abc123", "expected": "https://youtu.be/dQw4w9WgXcQ", "note": "short form carries si too", "provider": "youtube_extra"}
+{"input": "https://www.youtube.com/watch?v=abc&list=PL123&index=4", "expected": "https://www.youtube.com/watch?v=abc&list=PL123&index=4", "note": "SAFELIST: playlist position must survive", "provider": "preserve"}
+
+// --- X / Twitter ---
+{"input": "https://x.com/user/status/1234567890?s=20&t=AbCdEfGh", "expected": "https://x.com/user/status/1234567890", "note": "s and t are the X share trackers", "provider": "x_extra"}
+{"input": "https://twitter.com/user/status/1234567890?ref_src=twsrc%5Etfw", "expected": "https://twitter.com/user/status/1234567890", "note": "legacy twitter.com host still works", "provider": "twitter"}
+
+// --- TikTok, Spotify, Reddit, LinkedIn ---
+{"input": "https://www.tiktok.com/@user/video/7123456789?is_from_webapp=1&sender_device=pc&web_id=123", "expected": "https://www.tiktok.com/@user/video/7123456789", "note": "TikTok web share params", "provider": "tiktok"}
+{"input": "https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT?si=abc123def", "expected": "https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT", "note": "Spotify si", "provider": "spotify"}
+{"input": "https://www.reddit.com/r/rust/comments/abc123/title/?share_id=xyz&utm_source=share", "expected": "https://www.reddit.com/r/rust/comments/abc123/title/", "note": "Reddit share id plus utm", "provider": "reddit_extra"}
+{"input": "https://www.reddit.com/r/rust/?sort=top&t=week", "expected": "https://www.reddit.com/r/rust/?sort=top&t=week", "note": "SAFELIST: on Reddit t is the time filter, not a tracker", "provider": "preserve"}
+{"input": "https://www.linkedin.com/posts/someone_activity-123?trackingId=abc%3D%3D&lipi=urn%3Ali", "expected": "https://www.linkedin.com/posts/someone_activity-123", "note": "LinkedIn tracking ids", "provider": "linkedin_extra"}
+
+// --- Google ---
+{"input": "https://www.google.com/url?q=https%3A%2F%2Fexample.com%2Fpage%3Futm_source%3Dnews&sa=D&ved=2ahUKEwi", "expected": "https://example.com/page", "note": "redirect is unwrapped AND the extracted target is itself cleaned", "provider": "google"}
+{"input": "https://www.google.com/search?q=rust+lang&sxsrf=ABC&ved=xyz&source=hp", "expected": "https://www.google.com/search?q=rust+lang", "note": "SAFELIST: the search term q survives, the tracking around it does not", "provider": "google"}
+
+// --- Google Maps: ClearURLs covers none of this ---
+{"input": "https://www.google.com/maps/place/Big+Ben/@51.5007292,-0.1246254,17z/data=!3m1!4b1!4m6!3m5!1s0x487604c38c8cd1d9:0xb78f2474b9a45aa9!8m2!3d51.5007292!4d-0.1246254?entry=ttu&g_ep=EgoyMDI2MDcyOS4w", "expected": "https://www.google.com/maps/place/Big+Ben/@51.5007292,-0.1246254,17z/data=!3m1!4b1!4m6!3m5!1s0x487604c38c8cd1d9:0xb78f2474b9a45aa9!8m2!3d51.5007292!4d-0.1246254", "note": "coordinates must survive; only the session params go", "provider": "googlemaps"}
+{"input": "https://www.google.com/maps/search/?api=1&query=51.5007,-0.1246", "expected": "https://www.google.com/maps/search/?api=1&query=51.5007,-0.1246", "note": "SAFELIST: this is the link ShareWhere itself emits, it must survive a second pass", "provider": "preserve"}
+
+// --- security: a redirect target is attacker-controlled ---
+{"input": "https://www.google.com/url?q=intent%3A%2F%2Fscan%2F%23Intent%3Bscheme%3Dzxing%3Bend&sa=D", "expected": "https://www.google.com/url?q=intent%3A%2F%2Fscan%2F%23Intent%3Bscheme%3Dzxing%3Bend", "note": "SECURITY: intent: target is refused, wrapper is still cleaned", "provider": "google"}
+{"input": "https://www.google.com/url?q=javascript%3Aalert(1)&sa=D", "expected": "https://www.google.com/url?q=javascript%3Aalert(1)", "note": "SECURITY: javascript: target is refused", "provider": "google"}
+{"input": "https://www.google.com/url?q=file%3A%2F%2F%2Fetc%2Fpasswd&sa=D", "expected": "https://www.google.com/url?q=file%3A%2F%2F%2Fetc%2Fpasswd", "note": "SECURITY: file: target is refused", "provider": "google"}
+
+// --- eBay, AliExpress ---
+{"input": "https://www.ebay.co.uk/itm/123456789?_trkparms=abc&hash=item1a2b&mkcid=1&campid=5338", "expected": "https://www.ebay.co.uk/itm/123456789", "note": "eBay tracking plus campaign referral", "provider": "ebay_extra"}
+{"input": "https://www.aliexpress.com/item/1005001234567890.html?spm=a2g0o.home&aff_platform=link&algo_pvid=abc", "expected": "https://www.aliexpress.com/item/1005001234567890.html", "note": "AliExpress spm and affiliate params", "provider": "aliexpress_extra"}
