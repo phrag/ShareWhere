@@ -30,6 +30,23 @@ android {
 
     sourceSets["main"].java.srcDir(layout.buildDirectory.dir("generated/uniffi"))
     sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("generated/jniLibs"))
+
+    lint {
+        // The generated bindings call java.lang.ref.Cleaner, which is API 33+,
+        // and lint flags it against our minSdk of 26.
+        //
+        // It is a false positive. UniFFI guards the call with
+        // `Class.forName("java.lang.ref.Cleaner")` inside a
+        // `catch (ClassNotFoundException)`, so on API 26-32 the class is never
+        // loaded and it falls back to a JNA-based cleaner. Lint cannot follow
+        // reflection, so it sees only the call site.
+        //
+        // Scoped to this module deliberately: it contains no hand-written
+        // Kotlin at all, only the bindings regenerated on every build, so
+        // there is nothing here a NewApi check could usefully protect. The app
+        // and core-net modules keep it enabled.
+        disable += "NewApi"
+    }
 }
 
 dependencies {
