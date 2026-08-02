@@ -6,8 +6,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import app.sharewhere.net.createLinkResolver
 import androidx.lifecycle.lifecycleScope
-import app.sharewhere.BuildConfig
 import app.sharewhere.R
 import kotlinx.coroutines.launch
 import uniffi.sharewhere.Outcome
@@ -31,6 +36,16 @@ import uniffi.sharewhere.defaultOptions
 class ShareActivity : ComponentActivity() {
 
     private enum class Mode { CopyOnly, Preview }
+
+    /** Offline in the `offline` flavor, OkHttp-backed in `standard`. */
+    private val resolver by lazy { createLinkResolver() }
+
+    /**
+     * The stored options with the network permitted, for a single resolve the
+     * user has just tapped to allow. Deliberately not persisted: there is no
+     * "always allow" in v1.
+     */
+    private fun consentedOptions() = defaultOptions().copy(allowNetwork = true)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -100,10 +115,29 @@ class ShareActivity : ComponentActivity() {
             // Material3 components read their colours and typography from this;
             // without it they fall back to bare defaults and look wrong.
             MaterialTheme {
+                // The outcome is state, not a constant: resolving a short link
+                // replaces it with the location that was behind it.
+                var current by remember { mutableStateOf(outcome) }
+                var resolving by remember { mutableStateOf(false) }
+                val scope = rememberCoroutineScope()
+
                 SharePreviewScreen(
                     original = original,
-                    outcome = outcome,
-                    networkAvailable = BuildConfig.NETWORK_AVAILABLE,
+                    outcome = current,
+                    networkAvailable = resolver.available,
+                    resolving = resolving,
+                    onResolve = { url ->
+                        scope.launch {
+                            resolving = true
+                            // Consent is granted for this one call. The stored
+                            // options are untouched, so the next share starts
+                            // offline again.
+                            current = runCatching {
+                                resolver.resolve(url, consentedOptions())
+                            }.getOrElse { Outcome.Nothing }
+                            resolving = false
+                        }
+                    },
                     onCopy = { text, sensitive ->
                         Clipboard.copy(this, getString(R.string.clip_label_link), text, sensitive)
                     },

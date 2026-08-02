@@ -161,6 +161,17 @@ targets appear, does the clipboard write land, does the preview sheet read
 sensibly — is still unconfirmed. That is the next thing worth doing, and the
 most likely place for a surprise.
 
+### Known gaps
+
+- **No fuzzing yet.** The plan calls for `cargo-fuzz` targets over `sanitize_url`
+  and `parse_location`. They are not written. Panic-freedom is currently covered
+  only by a proptest, whose input generation is far weaker than a real fuzzer's.
+- **Settings are not persisted.** Coordinate precision, the label toggle and the
+  referral-parameter toggle all exist in the core and are exercised by its
+  tests, but the app always passes the defaults. There is no settings screen.
+- **The `geo:` and `om:` link handlers ship disabled** with no UI to enable
+  them, so the activity-aliases are currently unreachable.
+
 ### Roadmap
 
 - **v0.2** — settings, per-domain toggles, precision blur in the UI, i18n

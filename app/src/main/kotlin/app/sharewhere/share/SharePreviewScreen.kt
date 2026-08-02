@@ -38,6 +38,8 @@ fun SharePreviewScreen(
     original: String,
     outcome: Outcome,
     networkAvailable: Boolean,
+    resolving: Boolean,
+    onResolve: (url: String) -> Unit,
     onCopy: (text: String, sensitive: Boolean) -> Unit,
     onShare: (text: String) -> Unit,
     onDismiss: () -> Unit,
@@ -50,7 +52,12 @@ fun SharePreviewScreen(
             when (outcome) {
                 is Outcome.Text -> CleanedLink(outcome, original, onCopy, onShare)
                 is Outcome.Location -> Location(outcome, onCopy, onShare)
-                is Outcome.NeedsConsent -> NeedsConsent(outcome, networkAvailable)
+                is Outcome.NeedsConsent -> NeedsConsent(
+                    outcome = outcome,
+                    networkAvailable = networkAvailable,
+                    resolving = resolving,
+                    onResolve = onResolve,
+                )
                 is Outcome.Unsupported -> Unsupported(outcome)
                 Outcome.Nothing -> Text(
                     "Nothing to clean here.",
@@ -171,16 +178,26 @@ private fun Location(
 }
 
 @Composable
-private fun NeedsConsent(outcome: Outcome.NeedsConsent, networkAvailable: Boolean) {
+private fun NeedsConsent(
+    outcome: Outcome.NeedsConsent,
+    networkAvailable: Boolean,
+    resolving: Boolean,
+    onResolve: (String) -> Unit,
+) {
     Text("This link hides where it points", style = MaterialTheme.typography.titleMedium)
     Text(outcome.explanation, style = MaterialTheme.typography.bodySmall)
+    // The host is shown on its own line, deliberately: it is the single fact
+    // the user is being asked to agree to contact.
     Text(outcome.host, style = MaterialTheme.typography.bodyMedium)
 
     if (networkAvailable) {
         // Consent is per link. There is deliberately no "always allow" here:
         // the whole point is that each request is a decision the user makes.
-        Button(onClick = { /* wired to ResolveCoordinator in the standard flavor */ }) {
-            Text("Resolve this one link")
+        Button(
+            onClick = { onResolve(outcome.url) },
+            enabled = !resolving,
+        ) {
+            Text(if (resolving) "Contacting ${outcome.host}…" else "Resolve this one link")
         }
     } else {
         Text(
