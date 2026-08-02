@@ -83,12 +83,19 @@ val generateBindings by tasks.registering(Exec::class) {
     val profile = if (project.hasProperty("rustRelease")) "release" else "debug"
     val library = rustDir.resolve("target/$profile/$libraryName")
     val out = layout.buildDirectory.dir("generated/uniffi").get().asFile
+    doFirst { out.mkdirs() }
 
     commandLine(
         "cargo", "run", "-p", "sharewhere-ffi", "--features", "bindgen",
         "--bin", "uniffi-bindgen", "--",
         "generate", "--library", library.absolutePath,
         "--language", "kotlin", "--out-dir", out.absolutePath,
+        // Without this uniffi-bindgen shells out to ktlint to pretty-print the
+        // generated Kotlin, and dies with a bare "No such file or directory"
+        // on any machine that does not happen to have ktlint installed --
+        // which is every CI runner. The formatting is irrelevant: nothing
+        // reads this code, and it is regenerated on every build.
+        "--no-format",
     )
 
     outputs.dir(out)
