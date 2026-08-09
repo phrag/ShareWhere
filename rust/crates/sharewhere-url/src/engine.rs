@@ -30,10 +30,22 @@ use crate::types::{Error, RemovalKind, RemovedParam, SanitizeOptions, Sanitized}
 /// few hundred bytes.
 pub const MAX_INPUT_LEN: usize = 8192;
 
-/// Fixed-point iterations. A `rawRule` can expose a parameter that a `rule`
-/// then matches, so one pass is not always enough; three is well past what any
-/// real catalog rule needs and guarantees termination.
-const MAX_PASSES: u8 = 3;
+/// Fixed-point iterations.
+///
+/// A `rawRule` can expose a parameter that a `rule` then matches, so one pass
+/// is not always enough. Every pass strictly shortens the URL — the engine only
+/// ever removes — so the loop terminates on its own; this bound is a backstop
+/// against a pathological input costing 8192 passes, not a semantic limit.
+///
+/// It was 3. A URL with many nested `/ref=` segments exhausted that, and
+/// stopping early leaves a result that is not a fixed point — so cleaning it
+/// again changes it, and the preview stops agreeing with the clipboard. The
+/// substantive fix is that `apply_raw_rules` now converges internally; 16 is
+/// headroom on top of that. Ordinary links are unaffected either way, since
+/// the loop exits as soon as a pass changes nothing.
+///
+/// Found by `cargo fuzz run sanitize_url`.
+const MAX_PASSES: u8 = 16;
 
 #[derive(Default)]
 struct Acc {
@@ -71,6 +83,16 @@ pub fn sanitize_url(input: &str, opts: &SanitizeOptions) -> Result<Sanitized, Er
     let mut acc = Acc::default();
     let cleaned = run(input, opts, 0, &mut acc)?;
 
+    // Trim the *output* as well as the input. Dropping a trailing empty
+    // parameter can expose whitespace that was previously in the middle of the
+    // string — `…&sa=D\u{c}&` cleans to `…&sa=D\u{c}` — and since the next call
+    // would trim it, leaving it here makes the engine non-idempotent. It is
+    // also just wrong to put on the clipboard: whitespace in a URL has to be
+    // percent-encoded, so a bare trailing one is never meaningful.
+    //
+    // Found by `cargo fuzz run sanitize_url`.
+    let cleaned = cleaned.trim().to_string();
+
     Ok(Sanitized {
         changed: cleaned != input,
         original: input.to_string(),
@@ -90,9 +112,19 @@ fn run(current: &str, opts: &SanitizeOptions, hops: u8, acc: &mut Acc) -> Result
     let host = parsed.host_str().unwrap_or_default().to_ascii_lowercase();
     let preserved = sharewhere_rules::preserved_params(&host);
 
+    // The keys this URL arrived with. `apply_raw_rules` vets its rewrites
+    // against this, and it is deliberately fixed for the whole pass loop:
+    // judging each rewrite against the *current* string would let a rewrite
+    // rejected on one pass be accepted on the next, once unrelated rules had
+    // changed the key set, and the engine would then stop somewhere that is
+    // not a fixed point. Since passes only ever remove keys, a rewrite refused
+    // against this baseline stays refused on every later pass and on every
+    // later call.
+    let permitted = query_keys(current);
+
     let mut s = current.to_string();
     for _ in 0..MAX_PASSES {
-        match apply_once(&s, &host, &preserved, opts, hops, acc)? {
+        match apply_once(&s, &host, &preserved, &permitted, opts, hops, acc)? {
             Step::Same => break,
             Step::Changed(next) => s = next,
             Step::Redirect(target) => {
@@ -110,10 +142,12 @@ fn run(current: &str, opts: &SanitizeOptions, hops: u8, acc: &mut Acc) -> Result
     Ok(s)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn apply_once(
     s: &str,
     host: &str,
     preserved: &[&str],
+    permitted: &[&str],
     opts: &SanitizeOptions,
     hops: u8,
     acc: &mut Acc,
@@ -152,7 +186,7 @@ fn apply_once(
             }
         }
 
-        if apply_raw_rules(&mut cur, &compiled, candidate, acc) {
+        if apply_raw_rules(&mut cur, &compiled, candidate, permitted, acc) {
             changed = true;
         }
         if apply_param_rules(&mut cur, &compiled, candidate, preserved, opts, acc) {
@@ -168,35 +202,84 @@ fn apply_once(
 }
 
 /// Whole-URL rewrites. This is what strips Amazon's `/ref=…` path segment.
+///
+/// A rawRule is a regex over the entire URL string, which is what makes it
+/// powerful and also what makes it dangerous: it has no idea where the path
+/// ends and the query begins. Amazon's `\/ref=[^/?]*` will happily match a
+/// literal `/ref=` sitting inside a *query value* — and because the character
+/// class excludes only `/` and `?`, the match then runs greedily through every
+/// `&` to the end of the query, deleting unrelated parameters and splicing
+/// what is left into keys that were never there.
+///
+/// So each match is vetted individually against the invariant the rules are
+/// supposed to respect anyway: a rewrite may drop query parameters, but it may
+/// never produce a key that was not already present. Matches that break it are
+/// skipped; the others still apply, so the ordinary path rewrite is unaffected.
+///
+/// Vetting per match rather than per rule, and here rather than by patching the
+/// pattern: upstream ClearURLs behaves the same way, so a catalog update would
+/// quietly reintroduce a rewritten rule, and there is nothing special about
+/// this one rule — any future rawRule gets the same guard for free.
+///
+/// Found by `cargo fuzz run sanitize_url`.
 fn apply_raw_rules(
     cur: &mut String,
     compiled: &CompiledProvider,
     candidate: Candidate,
+    permitted: &[&str],
     acc: &mut Acc,
 ) -> bool {
     let mut changed = false;
+
     for rule in &compiled.raw_rules {
-        let hits: Vec<String> = rule
-            .find_iter(cur)
-            .map(|m| m.as_str().to_string())
-            .filter(|h| !h.is_empty())
-            .collect();
-        if hits.is_empty() {
-            continue;
-        }
-        let next = rule.replace_all(cur, "").into_owned();
-        if next != *cur {
-            for hit in hits {
+        // Rescan until a sweep accepts nothing.
+        //
+        // Skipping a match changes what the *next* sweep sees, because the
+        // accepted removals around it have moved the text — so one sweep is not
+        // a fixed point. Converging here rather than leaning on the caller's
+        // pass loop is what lets `apply_once` honestly report `Step::Same`;
+        // without it, a URL with more nested `/ref=` segments than there are
+        // passes came back still cleanable, and cleaning it again changed it.
+        //
+        // Terminates because every accepted removal shortens the string by at
+        // least one byte, which is also the loop's bound.
+        let mut budget = cur.len();
+        loop {
+            // Back to front, so applying one match does not move the offsets of
+            // the ones not yet considered.
+            let spans: Vec<(usize, usize)> = rule
+                .find_iter(cur)
+                .filter(|m| !m.is_empty())
+                .map(|m| (m.start(), m.end()))
+                .collect();
+
+            let mut accepted = false;
+            for (start, end) in spans.into_iter().rev() {
+                let hit = cur[start..end].to_string();
+                let mut next = String::with_capacity(cur.len() - (end - start));
+                next.push_str(&cur[..start]);
+                next.push_str(&cur[end..]);
+
+                if !query_keys(&next).iter().all(|key| permitted.contains(key)) {
+                    continue;
+                }
+
                 acc.removed.push(RemovedParam {
                     key: hit,
                     value: String::new(),
                     kind: RemovalKind::RawRule,
                     provider: candidate.name.to_string(),
                 });
+                acc.note(candidate.name);
+                *cur = next;
+                accepted = true;
+                changed = true;
             }
-            acc.note(candidate.name);
-            *cur = next;
-            changed = true;
+
+            if !accepted || budget == 0 {
+                break;
+            }
+            budget -= 1;
         }
     }
     changed
@@ -362,6 +445,20 @@ fn split_url(s: &str) -> Parts<'_> {
         query,
         fragment,
     }
+}
+
+/// Query parameter keys exactly as they appear, without percent-decoding.
+///
+/// Deliberately literal: the point is to notice a rewrite that changed the raw
+/// text of a key, and decoding first would hide precisely that.
+fn query_keys(url: &str) -> Vec<&str> {
+    split_url(url)
+        .query
+        .into_iter()
+        .flat_map(|q| q.split('&'))
+        .filter(|s| !s.is_empty())
+        .map(|s| s.split_once('=').map_or(s, |(k, _)| k))
+        .collect()
 }
 
 fn is_query_shaped(fragment: &str) -> bool {

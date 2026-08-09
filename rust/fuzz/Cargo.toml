@@ -1,0 +1,57 @@
+[package]
+name = "sharewhere-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "GPL-3.0-or-later"
+
+# Its own workspace root, deliberately. `cargo fuzz` needs a nightly toolchain
+# and injects `-Zsanitizer=address`; keeping it out of the main workspace means
+# `cargo test --workspace` on stable never tries to build it.
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+url = "2.5"
+sharewhere-url = { path = "../crates/sharewhere-url" }
+sharewhere-geo = { path = "../crates/sharewhere-geo" }
+
+# Fuzzing wants the optimiser on and the debug assertions on at the same time:
+# speed to reach interesting inputs, and `debug_assert!` left armed so an
+# internal invariant breaks the run rather than passing silently.
+[profile.release]
+debug = true
+debug-assertions = true
+overflow-checks = true
+
+[[bin]]
+name = "sanitize_url"
+path = "fuzz_targets/sanitize_url.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sanitize_text"
+path = "fuzz_targets/sanitize_text.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parse_location"
+path = "fuzz_targets/parse_location.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "geo_codecs"
+path = "fuzz_targets/geo_codecs.rs"
+test = false
+doc = false
+bench = false

@@ -155,6 +155,42 @@ fn oversized_input_is_rejected_rather_than_processed() {
     ));
 }
 
+/// Regression, found by `cargo fuzz run sanitize_url`.
+///
+/// `rawRules` are regexes over the whole URL string. Amazon's `\/ref=[^/?]*`
+/// matched a literal `/ref=` inside a *query value* and then ran greedily
+/// through every `&` to the end of the query, so five parameters vanished and
+/// the key `sp.co.uk/dp/B08N5WRWNW/ref` was spliced down to `sp.co.uk/dp/…`.
+///
+/// The path rewrite must still happen; only the match inside the query is
+/// refused.
+#[test]
+fn a_raw_rule_may_not_splice_query_parameters() {
+    let opts = SanitizeOptions::default();
+    let input = "https://www.amazon.co.uk/dp/B08N5WRWNW/ref=sr_0_3\
+                 ?crid=2ABCDEF&sp.co.uk/dp/B08N5WRWNW/ref=srefix=usb&tag=someaffiliate-21";
+    let result = sanitize_url(input, &opts).unwrap();
+
+    assert!(
+        !result.cleaned.contains("/ref=sr_0_3"),
+        "the path rewrite stopped working: {}",
+        result.cleaned,
+    );
+    assert!(
+        result
+            .cleaned
+            .contains("sp.co.uk/dp/B08N5WRWNW/ref=srefix=usb"),
+        "a query parameter was spliced by a rawRule: {}",
+        result.cleaned,
+    );
+    for key in param_keys(&result.cleaned) {
+        assert!(
+            param_keys(input).contains(&key),
+            "parameter {key:?} appeared out of nowhere",
+        );
+    }
+}
+
 #[test]
 fn non_web_schemes_are_rejected() {
     let opts = SanitizeOptions::default();

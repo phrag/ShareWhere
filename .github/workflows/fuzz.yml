@@ -1,0 +1,75 @@
+name: Fuzz
+
+on:
+  schedule:
+    # 03:17 UTC nightly. Off the hour deliberately — the top of the hour is
+    # when every cron job on GitHub fires at once and runners queue.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "Minutes per target"
+        default: "15"
+  # So a change to the targets themselves is checked before it lands.
+  pull_request:
+    paths:
+      - "rust/fuzz/**"
+      - "rust/crates/sharewhere-url/**"
+      - "rust/crates/sharewhere-geo/**"
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    strategy:
+      # One failing target should not cancel the others — they find different
+      # bugs and a full night's coverage is worth more than a fast red.
+      fail-fast: false
+      matrix:
+        target: [sanitize_url, sanitize_text, parse_location, geo_codecs]
+    steps:
+      - uses: actions/checkout@v4
+
+      # cargo-fuzz needs nightly: it builds with -Zsanitizer=address. The rest
+      # of the project stays on the pinned stable toolchain.
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust/fuzz
+
+      - run: cargo install cargo-fuzz --locked
+
+      - name: Seed the corpus from the golden test data
+        run: rust/fuzz/seed-corpus.sh
+
+      # A pull request gets a short run — enough to catch a target that no
+      # longer builds or that fails on its own seeds. The nightly gets the
+      # real budget.
+      - name: Work out the budget
+        id: budget
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "seconds=120" >> "$GITHUB_OUTPUT"
+          else
+            echo "seconds=$(( ${{ github.event.inputs.minutes || 15 }} * 60 ))" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fuzz ${{ matrix.target }}
+        working-directory: rust
+        run: |
+          cargo fuzz run ${{ matrix.target }} -- \
+            -max_total_time=${{ steps.budget.outputs.seconds }} \
+            -print_final_stats=1
+
+      # Only reached when the run above failed, so the crashing input is the
+      # whole point of the job. Uploaded rather than printed: it is arbitrary
+      # bytes, and the reproducer has to be byte-exact.
+      - name: Upload the crashing input
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crash-${{ matrix.target }}
+          path: rust/fuzz/artifacts/${{ matrix.target }}/
+          if-no-files-found: ignore

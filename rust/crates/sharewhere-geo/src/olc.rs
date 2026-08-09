@@ -171,6 +171,21 @@ pub fn decode(code: &str) -> Option<(f64, f64)> {
         return None;
     }
 
+    // The first pair of digits selects a 20°x20° block, so not every letter of
+    // the alphabet is legal there: latitude spans 180°, which is 9 blocks, and
+    // longitude 360°, which is 18. A code starting outside those runs off the
+    // globe entirely.
+    //
+    // Found by fuzzing. Without this, `XX000000+` decoded to latitude 288 and
+    // `is_full_code` called it valid, so a hostile `plus.codes` link could put
+    // a pin at a coordinate no map projection has — and every emitter would
+    // dutifully render eleven links to it.
+    if digits[0] * 20 >= (2 * LATITUDE_MAX) as usize
+        || digits[1] * 20 >= (2 * LONGITUDE_MAX) as usize
+    {
+        return None;
+    }
+
     let mut lat = -(LATITUDE_MAX as f64);
     let mut lon = -(LONGITUDE_MAX as f64);
 
@@ -276,5 +291,46 @@ mod tests {
     #[test]
     fn longitude_wraps_rather_than_clamping() {
         assert_eq!(encode(0.0, 190.0, 10), encode(0.0, -170.0, 10));
+    }
+
+    /// Regression, found by `cargo fuzz run geo_codecs`.
+    ///
+    /// Every character in `XX232323+` is a legal OLC digit and the separator is
+    /// in the right place, but the leading pair selects a block off the top of
+    /// the world. `decode` used to return latitude 288 and `is_full_code`
+    /// agreed it was valid.
+    #[test]
+    fn codes_that_decode_off_the_globe_are_rejected() {
+        // First latitude digit must be under 9 — 180° in 20° blocks.
+        for lat_digit in "VWX".chars() {
+            let code = format!("{lat_digit}2232323+");
+            assert!(decode(&code).is_none(), "{code} decodes past latitude 90");
+            assert!(!is_full_code(&code));
+        }
+        // First longitude digit must be under 18 — 360° in 20° blocks.
+        for lon_digit in "WX".chars() {
+            let code = format!("2{lon_digit}232323+");
+            assert!(decode(&code).is_none(), "{code} decodes past longitude 180");
+        }
+        // The last legal pair still decodes, so the bound is not off by one.
+        let (lat, lon) = decode("2V232323+").expect("the last in-range block is valid");
+        assert!((-90.0..=90.0).contains(&lat) && (-180.0..=180.0).contains(&lon));
+    }
+
+    /// Nothing `encode` produces may be rejected by the check above.
+    #[test]
+    fn every_encoded_code_survives_its_own_validation() {
+        let mut lat = -90.0_f64;
+        while lat <= 90.0 {
+            let mut lon = -180.0_f64;
+            while lon < 180.0 {
+                for length in [8, 10, 11, 15] {
+                    let code = encode(lat, lon, length);
+                    assert!(is_full_code(&code), "{code} from {lat},{lon} was rejected");
+                }
+                lon += 7.5;
+            }
+            lat += 5.0;
+        }
     }
 }

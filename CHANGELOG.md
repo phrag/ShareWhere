@@ -25,6 +25,31 @@ newest build of the branch:
   short-link resolution at all, coordinate precision (exact / ~100 m / ~1 km),
   place-name inclusion, always-preview, and the `geo:`/`om:` link handlers.
 - A consent dialog before any network request, naming the host it will contact.
+- `cargo-fuzz` targets for `sanitize_url`, `sanitize_text`, `parse_location` and
+  the Plus Code / `ge0` codecs, run nightly in CI. They assert the safety
+  invariants — host and scheme preserved, parameters only ever removed, codecs
+  round-trip, "strip place name" really strips it — rather than only checking
+  that nothing panics.
+
+### Fixed
+
+Three defects found by the fuzz targets below, none of which would have crashed
+— all three produced a confident wrong answer, which is the failure mode that
+matters for a sanitiser.
+
+- A Plus Code whose leading pair ran off the top of the world — `XX232323+`
+  decoded to latitude 288 — was accepted as valid, so a hostile `plus.codes`
+  link could put a pin at a coordinate no map projection has and every emitter
+  would render links to it.
+- Amazon's `\/ref=[^/?]*` rewrite matched a literal `/ref=` inside a *query
+  value* and, since the pattern excludes only `/` and `?`, ran through every
+  `&` to the end of the query — deleting unrelated parameters and splicing what
+  was left into keys that were never there. Rewrites are now vetted per match
+  against the rule they were always supposed to respect: a rewrite may drop
+  query parameters, never invent one.
+- Cleaning was not idempotent on URLs with many nested `/ref=` segments or a
+  trailing whitespace character, so the preview could disagree with what landed
+  on the clipboard.
 
 ### Notes
 

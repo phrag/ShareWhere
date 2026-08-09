@@ -81,7 +81,7 @@ in release builds.
 rust/crates/
   sharewhere-rules   vendored ClearURLs catalog + our own layer + build-time index
   sharewhere-url     the sanitiser engine          ─┐ pure, no I/O,
-  sharewhere-geo     parsers, Plus Codes, ge0      ─┘ independently fuzzable
+  sharewhere-geo     parsers, Plus Codes, ge0      ─┘ independently fuzzed
   sharewhere-core    policy + the resolve state machine
   sharewhere-ffi     UniFFI wrappers, nothing else
   sharewhere-cli     development tool
@@ -139,10 +139,25 @@ turns a small app into a ~95 MB download.
 
 ```bash
 cd rust
-cargo test --workspace                                  # 75 tests
+cargo test --workspace                                  # 78 tests
 cargo run -p sharewhere-cli -- clean '<url>'            # try one link
 cargo run -p sharewhere-cli -- corpus testdata/dirty_urls.jsonl
 ```
+
+**Fuzzing** needs nightly, since `cargo fuzz` builds with `-Zsanitizer=address`:
+
+```bash
+cargo install cargo-fuzz --locked
+rust/fuzz/seed-corpus.sh              # seeds generated from the golden corpus
+cd rust
+cargo +nightly fuzz run sanitize_url -- -max_total_time=60
+```
+
+Targets: `sanitize_url`, `sanitize_text`, `parse_location`, `geo_codecs`. They
+assert the safety invariants, not just panic-freedom — a sanitiser that quietly
+rewrites a link to point somewhere else never crashes. `.github/workflows/fuzz.yml`
+runs all four nightly and for two minutes each on a pull request that touches
+them.
 
 **The app** additionally needs the Android SDK, NDK r27+ (for 16 KB page
 alignment, mandatory on Android 15+) and `cargo-ndk`:
@@ -167,7 +182,8 @@ leaked into `ResolveCoordinator`'s public signature and broke the app module.
 
 | | |
 |---|---|
-| Rust core | complete — 75 tests, clippy and rustfmt clean |
+| Rust core | complete — 78 tests, clippy and rustfmt clean |
+| Fuzzing | four targets, clean over a combined ~4.7 M executions |
 | Plus Codes | matches all 302 upstream reference vectors exactly |
 | `ge0` codec | matches Organic Maps' own test vectors |
 | UniFFI bindings | generate and compile against JNA on the JVM |
@@ -182,12 +198,20 @@ most likely place for a surprise.
 
 ### Known gaps
 
-- **No fuzzing yet.** The plan calls for `cargo-fuzz` targets over `sanitize_url`
-  and `parse_location`. They are not written. Panic-freedom is currently covered
-  only by a proptest, whose input generation is far weaker than a real fuzzer's.
 - **Nothing is verified on a device.** Settings, the consent dialog and the
   removal popup all compile and pass CI, but none of them has been seen
   working.
+- **Cleaning free text is not idempotent once a redirect is unwrapped.** The
+  unwrapped target is percent-decoded out of the wrapper, so it can contain
+  characters — `>`, for one — that the URL scanner treats as ending a URL, and
+  the spliced text then tokenises differently. Cleaning always *settles*, and
+  the fuzzer asserts that, but it can take two rounds. A single URL is
+  unaffected. Fixing it means re-encoding unwrapped targets through the `Url`
+  serialiser, which mangles links that were fine, so it is not obviously worth
+  doing.
+- **Redirect unwrapping is capped** at five hops, so a wrapper nested deeper
+  comes back partly wrapped. Deliberate — the cap is what stops a crafted link
+  costing unbounded work.
 
 ### Roadmap
 
