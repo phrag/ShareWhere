@@ -31,35 +31,40 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --locked
 
-      - run: ./gradlew assembleOfflineDebug assembleStandardDebug
+      - run: ./gradlew assembleDebug
 
       # Publish the build BEFORE running the checks. A failing assertion should
       # not cost you an installable APK that compiled perfectly well.
       #
-      # Debug-signed, so they install straight from a phone without any
-      # keystore secrets. `offline` is the one to install: no permissions at
-      # all. `standard` adds INTERNET for short-link expansion.
-      - name: Collect APKs
+      # Debug-signed, so it installs straight from a phone without any
+      # keystore secrets.
+      - name: Collect the APK
         run: |
           mkdir -p artifacts
-          find app/build/outputs/apk -name '*.apk' -exec cp {} artifacts/ \;
+          # One flavor now, so exactly one APK. Named with the short SHA so a
+          # downloaded file still says which commit it came from.
+          apk=$(find app/build/outputs/apk -name '*-debug.apk' | head -1)
+          test -n "$apk" || { echo "no APK produced"; exit 1; }
+          cp "$apk" "artifacts/sharewhere-${GITHUB_SHA::7}.apk"
           ls -la artifacts
-          echo "### APKs" >> "$GITHUB_STEP_SUMMARY"
-          for f in artifacts/*.apk; do
-            echo "- \`$(basename "$f")\` — $(du -h "$f" | cut -f1), sha256 \`$(sha256sum "$f" | cut -c1-16)…\`" \
-              >> "$GITHUB_STEP_SUMMARY"
-          done
+          {
+            echo "### APK"
+            for f in artifacts/*.apk; do
+              echo "- \`$(basename "$f")\` — $(du -h "$f" | cut -f1)"
+              echo "  sha256 \`$(sha256sum "$f" | cut -d' ' -f1)\`"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sharewhere-apks-${{ github.sha }}
+          name: sharewhere-apk-${{ github.sha }}
           path: artifacts/*.apk
           if-no-files-found: error
           retention-days: 30
 
-      # The core product claim, asserted rather than promised: the offline
-      # flavor's merged manifest must declare no permissions at all.
-      - run: ./gradlew verifyOfflineFlavorHasNoPermissions
+      # The manifest may declare INTERNET and nothing else. A dependency
+      # that drags in location, storage or contacts fails here.
+      - run: ./gradlew verifyDeclaredPermissions
 
       # JVM tests run against the host-built .so, so binding drift is caught in
       # seconds without an emulator.
@@ -96,4 +101,4 @@ jobs:
         with:
           api-level: ${{ matrix.api-level }}
           arch: x86_64
-          script: ./gradlew connectedOfflineDebugAndroidTest
+          script: ./gradlew connectedDebugAndroidTest

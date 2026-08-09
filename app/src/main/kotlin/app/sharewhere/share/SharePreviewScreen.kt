@@ -7,12 +7,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -37,7 +42,7 @@ import uniffi.sharewhere.renderLinks
 fun SharePreviewScreen(
     original: String,
     outcome: Outcome,
-    networkAvailable: Boolean,
+    resolutionOffered: Boolean,
     resolving: Boolean,
     onResolve: (url: String) -> Unit,
     onCopy: (text: String, sensitive: Boolean) -> Unit,
@@ -54,7 +59,7 @@ fun SharePreviewScreen(
                 is Outcome.Location -> Location(outcome, onCopy, onShare)
                 is Outcome.NeedsConsent -> NeedsConsent(
                     outcome = outcome,
-                    networkAvailable = networkAvailable,
+                    resolutionOffered = resolutionOffered,
                     resolving = resolving,
                     onResolve = onResolve,
                 )
@@ -180,30 +185,56 @@ private fun Location(
 @Composable
 private fun NeedsConsent(
     outcome: Outcome.NeedsConsent,
-    networkAvailable: Boolean,
+    resolutionOffered: Boolean,
     resolving: Boolean,
     onResolve: (String) -> Unit,
 ) {
+    var confirming by remember { mutableStateOf(false) }
+
     Text("This link hides where it points", style = MaterialTheme.typography.titleMedium)
     Text(outcome.explanation, style = MaterialTheme.typography.bodySmall)
-    // The host is shown on its own line, deliberately: it is the single fact
-    // the user is being asked to agree to contact.
+    // The host on its own line: it is the single fact being consented to.
     Text(outcome.host, style = MaterialTheme.typography.bodyMedium)
 
-    if (networkAvailable) {
-        // Consent is per link. There is deliberately no "always allow" here:
-        // the whole point is that each request is a decision the user makes.
-        Button(
-            onClick = { onResolve(outcome.url) },
-            enabled = !resolving,
-        ) {
-            Text(if (resolving) "Contacting ${outcome.host}…" else "Resolve this one link")
-        }
-    } else {
+    if (!resolutionOffered) {
         Text(
-            "This build has no internet permission at all, so it cannot follow " +
-                "the link. Install the standard build if you want that option.",
+            "Resolving short links is turned off in Settings, so ShareWhere will " +
+                "not contact anyone. You can still copy or share the link as it is.",
             style = MaterialTheme.typography.bodySmall,
+        )
+        return
+    }
+
+    Button(onClick = { confirming = true }, enabled = !resolving) {
+        Text(if (resolving) "Contacting ${outcome.host}…" else "Resolve this link")
+    }
+
+    // A modal gate rather than a one-tap button. Android grants INTERNET at
+    // install time and offers no runtime prompt, so this dialog is the only
+    // place a user gets to decide — it should be unmissable and it should name
+    // the host, every time. Consent is per link: there is no "always allow".
+    if (confirming) {
+        AlertDialog(
+            onDismissRequest = { confirming = false },
+            title = { Text("Connect to ${outcome.host}?") },
+            text = {
+                Text(
+                    "ShareWhere will make one request to ${outcome.host} to find " +
+                        "out where this link points. It sends no cookies and no " +
+                        "identifying information, and asks again next time.\n\n" +
+                        "That host will see your IP address, as it would if you " +
+                        "opened the link yourself.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirming = false
+                    onResolve(outcome.url)
+                }) { Text("Connect once") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirming = false }) { Text("Not now") }
+            },
         )
     }
 }

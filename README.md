@@ -14,8 +14,8 @@ Android app, Rust core, GPL-3.0-or-later.
 **Clean a link.** Pick ShareWhere from the share sheet and the tracking comes
 off — Instagram's `igshid`, Amazon's `/ref=` path segment and affiliate `tag`,
 `utm_*`, `fbclid`, and about 200 other providers' worth. Two share targets:
-*Clean & copy* finishes without showing a screen, *Clean & share…* shows exactly
-what was removed first.
+**Clean Copy** finishes without showing a screen, with a brief popup naming what
+it removed; **Clean Share** shows the full list first, then re-shares.
 
 ```
 https://www.amazon.co.uk/dp/B08N5WRWNW/ref=sr_1_3?crid=2ABCDEF&keywords=usb+hub&qid=1712345678&tag=someaffiliate-21
@@ -43,28 +43,34 @@ lookup. Plus Codes do the same job entirely offline, so that is what ShareWhere
 uses. A `///word.word.word` is recognised and explained rather than silently
 failing.
 
-**No silent network access.** The default build asks the system for **no
-capability whatsoever** — not even `INTERNET`. Verified in CI against the merged
-manifest, so it is checkable rather than promised:
+**No silent network access.** One APK, one permission: `INTERNET`. Nothing
+reaches the network until you tap through a dialog naming the exact host.
+
+Being precise about the mechanism, because it is not what people assume:
+`INTERNET` is a *normal* Android permission, granted at install time, and the
+platform provides **no way to request it at runtime**. No app can put a system
+permission dialog in front of you for it. So ShareWhere gates itself instead —
+the Rust core refuses to emit a request until `allowNetwork` is set, and that is
+only ever set for a single resolve, from the consent dialog. There is no "always
+allow".
+
+What you can still verify mechanically is that nothing *else* crept in:
 
 ```
-./gradlew assembleOfflineRelease
-apkanalyzer manifest permissions app-offline-release.apk
+./gradlew assembleRelease
+apkanalyzer manifest permissions app-release.apk
 ```
 
-That prints exactly one line, and it is worth being precise about it:
-`app.sharewhere.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. That permission is
-defined by androidx under our own application id at `signature` protection
-level, meaning only ShareWhere can ever hold it. Its entire job is to stop
-other apps talking to a broadcast receiver androidx registers internally on
-pre-Android-13 devices. It grants ShareWhere nothing, and Android does not show
-it to users. Every *capability* permission — internet, location, storage,
-contacts — is absent, and CI fails if one appears.
+Two lines: `android.permission.INTERNET`, and
+`app.sharewhere.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` — the latter defined
+by androidx under our own application id at `signature` level, so only
+ShareWhere can hold it, guarding a receiver androidx registers internally. CI
+fails the build if anything beyond those two appears.
 
 Google Maps share links (`maps.app.goo.gl/…`) carry no coordinates at all, so
-they genuinely cannot be resolved offline. The `standard` build can follow one,
-but only after you tap a prompt naming the host it will contact. There is no
-"always allow" setting.
+they genuinely cannot be resolved offline. ShareWhere offers to follow one, and
+asks first — naming the host — every time. You can turn the offer off entirely
+in Settings, in which case it never asks and never connects.
 
 **No analytics, no crash reporter, no Play Services.** URLs never reach logcat
 in release builds.
@@ -80,9 +86,9 @@ rust/crates/
   sharewhere-ffi     UniFFI wrappers, nothing else
   sharewhere-cli     development tool
 
-app/         Compose UI, share targets
+app/         Compose UI, share targets, settings
 core-rust/   cargo-ndk + uniffi-bindgen, JNA
-core-net/    OkHttp — linked by the `standard` flavor only
+core-net/    OkHttp transport — the only module that can reach the network
 ```
 
 Three decisions worth knowing:
@@ -107,22 +113,18 @@ is chosen by whoever controls the link.
 
 ## Getting a build
 
-Every push builds both flavors and attaches them to the run. To grab one:
+Every push builds an APK and attaches it to the run. To grab one:
 
 1. Open the [Actions tab](https://github.com/phrag/ShareWhere/actions/workflows/android.yml)
    and pick the most recent green run — or trigger one yourself with **Run
    workflow**.
-2. Download the `sharewhere-apks-<sha>` artifact at the bottom of the run page.
-3. Unzip and install `app-offline-debug.apk`.
+2. Download the `sharewhere-apk-<sha>` artifact at the bottom of the run page.
+3. Unzip and install `sharewhere-<sha>.apk`.
 
-The run summary lists each APK's size and SHA-256 so you can check what you got.
+The run summary prints the size and full SHA-256, so you can check what you got.
 
-**Install `offline` unless you specifically want short-link expansion.** It is
-the build with no permissions at all. `standard` adds `INTERNET`, used only
-behind the per-link consent prompt.
-
-These are **debug-signed**, so they install without any keystore setup, but they
-will not upgrade over a release-signed build later and are not suitable for
+It is **debug-signed**, so it installs without any keystore setup, but it will
+not upgrade over a release-signed build later and is not suitable for
 distribution. Signed release builds come with the F-Droid work in v1.0.
 
 ## Building
@@ -141,20 +143,19 @@ alignment, mandatory on Android 15+) and `cargo-ndk`:
 
 ```bash
 cargo install cargo-ndk --locked
-./gradlew assembleOfflineDebug
+./gradlew assembleDebug
 ```
 
 **Without an Android SDK**, a useful amount is still checkable locally. The
-generated UniFFI bindings, `core-net`'s `ResolveCoordinator` and the
-`LinkResolver` seam use no Android APIs at all — only JNA, OkHttp, coroutines
-and the JDK — so they compile in a plain JVM Gradle project.
+generated UniFFI bindings and `core-net`'s `ResolveCoordinator` use no Android
+APIs at all — only JNA, OkHttp, coroutines and the JDK — so they compile in a
+plain JVM Gradle project.
 
 Mirror the real module boundaries when you do this, with OkHttp as an
 `implementation` dependency of the `net` module and absent from `app`. A single
 flat module with every dependency on the classpath will compile code that then
 fails in the real build: that is exactly how an `OkHttpClient` default argument
-leaked into `ResolveCoordinator`'s public signature and broke only the
-`standard` flavor.
+leaked into `ResolveCoordinator`'s public signature and broke the app module.
 
 ## Current state
 
@@ -164,12 +165,12 @@ leaked into `ResolveCoordinator`'s public signature and broke only the
 | Plus Codes | matches all 302 upstream reference vectors exactly |
 | `ge0` codec | matches Organic Maps' own test vectors |
 | UniFFI bindings | generate and compile against JNA on the JVM |
-| Android app | builds green in CI, both flavors, APKs published per run |
+| Android app | builds green in CI, APK published per run |
 | On a real device | **not yet tried** |
 
 Everything above is verified by machine. What nobody has done yet is install the
 APK and share a link into it, so the end-to-end behaviour — do both share
-targets appear, does the clipboard write land, does the preview sheet read
+targets appear, does the clipboard write land, does the consent dialog read
 sensibly — is still unconfirmed. That is the next thing worth doing, and the
 most likely place for a surprise.
 
@@ -178,18 +179,16 @@ most likely place for a surprise.
 - **No fuzzing yet.** The plan calls for `cargo-fuzz` targets over `sanitize_url`
   and `parse_location`. They are not written. Panic-freedom is currently covered
   only by a proptest, whose input generation is far weaker than a real fuzzer's.
-- **Settings are not persisted.** Coordinate precision, the label toggle and the
-  referral-parameter toggle all exist in the core and are exercised by its
-  tests, but the app always passes the defaults. There is no settings screen.
-- **The `geo:` and `om:` link handlers ship disabled** with no UI to enable
-  them, so the activity-aliases are currently unreachable.
+- **Nothing is verified on a device.** Settings, the consent dialog and the
+  removal popup all compile and pass CI, but none of them has been seen
+  working.
 
 ### Roadmap
 
 - ~~**v0.3** — wire the consent prompt to `core-net`~~ — done. Tapping "Resolve
   this one link" now drives the Rust resolve session through OkHttp and replaces
   the prompt with the location behind the short link. Untried on a device.
-- **v0.2** — settings, per-domain toggles, precision blur in the UI, i18n
+- **v0.2** — per-domain toggles, i18n, a manual paste box
 - **v1.0** — F-Droid, reproducible builds, accessibility pass
 - **v2** — a map image; offline PMTiles regions preferred over fetching tiles,
   since a tile request tells a server exactly where you are looking

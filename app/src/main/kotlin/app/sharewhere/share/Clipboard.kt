@@ -3,7 +3,6 @@ package app.sharewhere.share
 import android.content.ClipData
 import android.content.ClipDescription
 import android.content.Context
-import android.os.Build
 import android.os.PersistableBundle
 import android.widget.Toast
 
@@ -33,15 +32,15 @@ object Clipboard {
     }
 
     /**
-     * Confirm a copy, without doubling up on the system's own UI.
+     * Say what was removed.
      *
-     * API 33+ shows a clipboard preview automatically. Adding our own toast on
-     * top of it gives the user two notifications for one action.
+     * Shown on every version, unlike a plain "copied!" confirmation. The system
+     * clipboard preview on API 33+ shows the resulting text but says nothing
+     * about what came out of it, which is the part worth knowing — Clean Copy
+     * finishes without a screen, so this is the only feedback there is.
      */
-    fun confirmIfNeeded(context: Context, message: String) {
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-        }
+    fun announce(context: Context, message: String) {
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 
     private val Context.clipboard

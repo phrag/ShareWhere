@@ -24,6 +24,6 @@ rootProject.name = "ShareWhere"
 
 include(":app")
 include(":core-rust")
-// Only the `standard` flavor depends on this, so the `offline` APK contains no
-// HTTP client at all -- a claim anyone can check with apkanalyzer.
+// The only module that links an HTTP client. Kept separate so the transport
+// stays in one auditable place rather than spreading through the UI.
 include(":core-net")

@@ -15,36 +15,9 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
 
-    flavorDimensions += "network"
-    productFlavors {
-        /**
-         * The recommended download. Declares no permissions at all -- not even
-         * INTERNET -- and does not link an HTTP client. Short links cannot be
-         * resolved, and the app says so rather than offering a dead button.
-         *
-         * The point is that the privacy claim is checkable by a stranger with
-         * apkanalyzer instead of taken on trust. `verifyOfflineFlavorHasNoPermissions`
-         * below fails the build if that ever stops being true.
-         */
-        create("offline") {
-            dimension = "network"
-            isDefault = true
-            buildConfigField("boolean", "NETWORK_AVAILABLE", "false")
-        }
-
-        /**
-         * Adds INTERNET so short links can be expanded -- but only after the
-         * user taps through a per-link consent prompt. There is deliberately no
-         * "always resolve" setting in v1.
-         */
-        create("standard") {
-            dimension = "network"
-            applicationIdSuffix = ".standard"
-            versionNameSuffix = "-standard"
-            buildConfigField("boolean", "NETWORK_AVAILABLE", "true")
-        }
+        // Surfaced on the About screen so a user can say which build they have.
+        buildConfigField("String", "PROJECT_URL", "\"https://github.com/phrag/ShareWhere\"")
     }
 
     buildTypes {
@@ -69,8 +42,7 @@ android {
 
 dependencies {
     implementation(project(":core-rust"))
-    // Only the standard flavor gets an HTTP client.
-    "standardImplementation"(project(":core-net"))
+    implementation(project(":core-net"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
@@ -94,72 +66,60 @@ dependencies {
 }
 
 /**
- * Permissions the build tooling injects, which grant ShareWhere nothing.
+ * Permissions the app is allowed to declare, and nothing else.
  *
- * `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` is defined by androidx.core and
- * namespaced under our own application id. It is `signature` protection level,
- * so only ShareWhere itself can ever hold it, and it exists solely so
- * androidx can guard a broadcast receiver it registers at runtime against
- * other apps on pre-Android-13 devices. It asks the system for no capability
- * and never appears in the permission list a user sees.
+ * There is one APK now, and it does declare INTERNET — short links genuinely
+ * cannot be resolved without it. So the old "no permissions at all" claim is
+ * gone, and this check has changed job accordingly: it no longer asserts an
+ * empty list, it asserts *this exact list*. A dependency that quietly drags in
+ * location, storage, contacts or anything else still fails the build.
  *
- * It is allow-listed rather than stripped with `tools:node="remove"` because
- * removing it would break any dependency that does register such a receiver,
- * and that failure would only show up at runtime on a device -- which is not
- * something this project can currently test.
+ * `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` is defined by androidx under our
+ * own application id at `signature` level, so only ShareWhere can hold it. It
+ * guards a receiver androidx registers internally on pre-Android-13 devices and
+ * grants nothing.
  */
-private val autoInjected = setOf(
+private val allowedPermissions = setOf(
+    "android.permission.INTERNET",
     "app.sharewhere.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
-    "app.sharewhere.standard.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
 )
 
-/**
- * The privacy regression test.
- *
- * "We ask for no permissions" is the app's central claim, and the kind of thing
- * a stray library or a merged manifest can quietly break. Asserting it against
- * the *merged* manifest means it cannot regress by accident.
- */
-val verifyOfflineFlavorHasNoPermissions by tasks.registering {
+val verifyDeclaredPermissions by tasks.registering {
     group = "verification"
-    description = "Fails if the offline flavor's merged manifest declares any permission."
+    description = "Fails if the merged manifest declares a permission outside the allowed set."
 
-    // Discovered by walking rather than hard-coded, because the intermediates
-    // layout is an AGP implementation detail that moves between versions
-    // (merged_manifest vs merged_manifests, and the task-name subdirectory).
+    // Discovered by walking rather than hard-coded: the intermediates layout is
+    // an AGP implementation detail that has moved between versions.
     val buildDir = layout.buildDirectory
     doLast {
         val manifests = buildDir.get().asFile.resolve("intermediates")
             .walkTopDown()
             .filter { it.name == "AndroidManifest.xml" }
-            .filter { it.path.contains("offline", ignoreCase = true) }
             .filter { it.path.contains("merged_manifest", ignoreCase = true) }
             .toList()
 
         check(manifests.isNotEmpty()) {
-            "No merged offline manifest found under ${buildDir.get().asFile}/intermediates -- " +
-                "assemble the offline flavor first, or AGP has moved the output again."
+            "No merged manifest found under ${buildDir.get().asFile}/intermediates -- " +
+                "assemble first, or AGP has moved the output again."
         }
 
         manifests.forEach { manifest ->
-            val declared = Regex("""<uses-permission[^>]*android:name="([^"]+)"""")
+            val unexpected = Regex("""<uses-permission[^>]*android:name="([^"]+)"""")
                 .findAll(manifest.readText())
                 .map { it.groupValues[1] }
-                .filterNot { it in autoInjected }
+                .filterNot { it in allowedPermissions }
                 .toList()
-            check(declared.isEmpty()) {
-                "The offline flavor must declare no capability-granting permissions, " +
-                    "but ${manifest.path} has: $declared"
+            check(unexpected.isEmpty()) {
+                "${manifest.path} declares unexpected permission(s): $unexpected"
             }
         }
         logger.lifecycle(
-            "offline flavor grants itself no capabilities (${manifests.size} manifest(s) checked)",
+            "manifest declares only the allowed permissions (${manifests.size} checked)",
         )
     }
 }
 
-// Deliberately NOT wired with finalizedBy(assembleOffline*): a failing check
-// would then also fail the assemble task, and CI would have no APK to publish.
-// The build is more useful than the assertion is urgent, so CI runs this as its
-// own step after the artifact has been uploaded.
-tasks.named("check") { dependsOn(verifyOfflineFlavorHasNoPermissions) }
+// Deliberately NOT wired with finalizedBy(assemble*): a failing check would then
+// also fail the assemble task, and CI would have no APK to publish. The build is
+// more useful than the assertion is urgent, so CI runs this after uploading.
+tasks.named("check") { dependsOn(verifyDeclaredPermissions) }

@@ -1,13 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Note what is NOT here: no <uses-permission> at all.
+    One APK, one permission: INTERNET, declared below and used only behind an
+    explicit per-link consent dialog.
 
-    The offline flavor ships exactly this. The standard flavor adds INTERNET in
-    src/standard/AndroidManifest.xml, and nothing else. There is no analytics
-    SDK, no crash reporter and no Play Services, so there is nothing else to
-    declare.
+    There is no analytics SDK, no crash reporter and no Play Services, so there
+    is nothing else to declare. CI asserts that this stays true.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        The only permission ShareWhere asks for, and the only one it can use.
+
+        INTERNET is a normal, install-time permission: Android grants it at
+        install and provides no way to request it at runtime. So the app cannot
+        put a system permission dialog in front of you. What it does instead is
+        refuse to use it without asking: the core returns NeedsConsent and the
+        UI shows a dialog naming the exact host before any request is made.
+        Nothing reaches the network until you tap through that.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:name=".ShareWhereApp"

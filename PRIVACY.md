@@ -2,18 +2,25 @@
 
 ## The short version
 
-ShareWhere collects nothing, sends nothing, and stores nothing but your
-settings. The `offline` build asks Android for no capability at all — no
-internet, no location, no storage — which you can check yourself without
-trusting this document.
+ShareWhere collects nothing and stores nothing but your settings. It asks
+Android for exactly one capability — internet — and does not use it until you
+tap through a dialog naming the host it would contact. No location, no storage,
+no contacts. You can check that yourself without trusting this document.
 
 ## What leaves your device
 
-**In the `offline` build: nothing.** It has no `INTERNET` permission and does
-not link an HTTP client, so it cannot make a network request even if a bug told
-it to.
+**By default: nothing.** ShareWhere holds `INTERNET`, but the Rust core will
+not emit a request until `allowNetwork` is set, and that is only ever set for a
+single resolve, from the consent dialog.
 
-**In the `standard` build: one request, only when you tap for it.** Some links
+Worth being precise, since it is a real limitation rather than a design choice:
+`INTERNET` is a *normal* Android permission, granted at install time. The
+platform offers **no runtime prompt** for it, so no app can make the system ask
+you. ShareWhere's dialog is an in-app gate, not a system permission dialog. If
+you would rather not rely on that, turn "Offer to resolve short links" off in
+Settings and it will never ask or connect.
+
+**When you do tap: one request.** Some links
 genuinely cannot be resolved offline — `maps.app.goo.gl/…`, which is what Google
 Maps puts on the clipboard, carries no coordinates whatsoever. When you share
 one, ShareWhere stops and shows you the host it would contact. Nothing happens
@@ -54,31 +61,31 @@ logcat, where any app with the right permission could read it.
 ## Verifying this yourself
 
 ```bash
-./gradlew assembleOfflineRelease
-apkanalyzer manifest permissions app/build/outputs/apk/offline/release/*.apk
+./gradlew assembleRelease
+apkanalyzer manifest permissions app/build/outputs/apk/release/*.apk
 ```
 
-That prints one line, and it is not a capability:
+That prints two lines:
 
 ```
+android.permission.INTERNET
 app.sharewhere.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
 ```
 
-androidx defines this permission under ShareWhere's own application id, at
-`signature` protection level — so no other app can ever be granted it. It exists
-only to stop other apps reaching a broadcast receiver androidx registers
-internally on pre-Android-13 devices. It asks the system for nothing, and
-Android never shows it to users.
+The second is not a capability. androidx defines it under ShareWhere's own
+application id at `signature` protection level, so no other app can ever be
+granted it, and it exists only to stop other apps reaching a broadcast receiver
+androidx registers internally on pre-Android-13 devices.
 
-Everything that *would* be a capability — `INTERNET`, location, storage,
-contacts — is absent. CI asserts this on every build against the merged
-manifest, so a dependency cannot quietly introduce one.
+Location, storage and contacts are absent, and CI fails the build if anything
+beyond those two lines appears — so a dependency cannot quietly introduce one.
 
-An earlier version of this document said the offline build declares no
-permissions at all. That was written before the app had ever been built, and
-the merged manifest proved it wrong; this is the corrected claim.
+Two earlier versions of this document were wrong and are worth naming. The first
+said the app declares no permissions at all; the merged manifest disproved it.
+The second described an `offline` build with no `INTERNET` permission, which was
+true at the time but no longer exists — there is one APK now.
 
-For the `standard` build, the request policy is in
+The request policy is in
 `rust/crates/sharewhere-core/src/session.rs` and its enforcement is in
 `core-net/src/main/kotlin/app/sharewhere/net/ResolveCoordinator.kt`. Both are
 short and deliberately boring to read.
