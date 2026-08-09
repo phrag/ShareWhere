@@ -113,19 +113,23 @@ is chosen by whoever controls the link.
 
 ## Getting a build
 
-Every push builds an APK and attaches it to the run. To grab one:
+### [⬇ sharewhere-dev.apk](https://github.com/phrag/ShareWhere/releases/download/dev-build/sharewhere-dev.apk)
 
-1. Open the [Actions tab](https://github.com/phrag/ShareWhere/actions/workflows/android.yml)
-   and pick the most recent green run — or trigger one yourself with **Run
-   workflow**.
-2. Download the `sharewhere-apk-<sha>` artifact at the bottom of the run page.
-3. Unzip and install `sharewhere-<sha>.apk`.
+That link always serves the newest build — bookmark it. Every push to `main` or
+a `claude/**` branch replaces it, and it needs no GitHub login, so it opens
+straight from a phone.
 
-The run summary prints the size and full SHA-256, so you can check what you got.
+The [`dev-build` pre-release](https://github.com/phrag/ShareWhere/releases/tag/dev-build)
+page shows which branch and commit it came from. Each run also uploads a
+`sharewhere-apk-<sha>` workflow artifact, with the size and full SHA-256 printed
+in the run summary, if you want a specific commit rather than the latest.
 
-It is **debug-signed**, so it installs without any keystore setup, but it will
-not upgrade over a release-signed build later and is not suitable for
-distribution. Signed release builds come with the F-Droid work in v1.0.
+Tagging `v0.2.0` (or any `x.y.z`) publishes a versioned release instead, with
+notes taken from the matching section of [CHANGELOG.md](CHANGELOG.md).
+
+Builds are **debug-signed**, so they install without keystore setup but will not
+upgrade over a release-signed build later. Signed release builds come with the
+F-Droid work in v1.0.
 
 ## Building
 

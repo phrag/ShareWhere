@@ -2,10 +2,16 @@ name: Android
 
 on:
   push:
-    paths-ignore: ["rust/testdata/**", "*.md"]
+    branches: [main, "claude/**"]
+    tags: ["v*", "*.*.*"]
+  release:
+    types: [published]
   pull_request:
   # So a build can be produced on demand without pushing a commit.
   workflow_dispatch:
+
+permissions:
+  contents: write # needed to publish the release the APK is attached to
 
 jobs:
   build:
@@ -61,6 +67,75 @@ jobs:
           path: artifacts/*.apk
           if-no-files-found: error
           retention-days: 30
+
+      # --- publishing -------------------------------------------------------
+      #
+      # Workflow-run artifacts need a GitHub login to download and are tied to
+      # one run, which makes them a poor thing to hand someone. A single
+      # always-replaced pre-release gives one stable, bookmarkable URL that
+      # works for anyone:
+      #
+      #   https://github.com/phrag/ShareWhere/releases/download/dev-build/sharewhere-dev.apk
+
+      - name: Name the dev APK
+        if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
+        run: cp artifacts/*.apk sharewhere-dev.apk
+
+      - name: Publish the dev build
+        if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev-build
+          name: "ShareWhere dev build (latest)"
+          body: |
+            Rebuilt and replaced on every push to `main` or a `claude/**` branch.
+            Not a stable release — this is in-progress work.
+
+            **[sharewhere-dev.apk](https://github.com/phrag/ShareWhere/releases/download/dev-build/sharewhere-dev.apk)**
+            — that link always serves the newest build, so it is safe to bookmark.
+
+            Debug-signed, so it installs without any keystore setup. It will not
+            upgrade over a release-signed build later.
+
+            Branch: `${{ github.ref_name }}`
+            Commit: ${{ github.sha }}
+          prerelease: true
+          files: sharewhere-dev.apk
+
+      - name: Name the release APK
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'release'
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cp artifacts/*.apk "sharewhere-${VERSION}.apk"
+
+      - name: Extract release notes from CHANGELOG
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'release'
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Everything under "## <version>" up to the next "## " heading.
+          awk -v hdr="## $VERSION" '
+            !grab {
+              if (substr($0, 1, length(hdr)) == hdr) {
+                rest = substr($0, length(hdr) + 1)
+                if (rest == "" || rest ~ /^[ \t\r]/) { grab = 1; next }
+              }
+            }
+            grab && /^## / { exit }
+            grab { print }
+          ' CHANGELOG.md > release-notes.md
+          # A version with no CHANGELOG section still gets a usable body.
+          if [ ! -s release-notes.md ]; then
+            echo "ShareWhere ${VERSION}" > release-notes.md
+          fi
+          cat release-notes.md
+
+      - name: Attach the APK to the release
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          body_path: release-notes.md
+          files: sharewhere-*.apk
 
       # The manifest may declare INTERNET and nothing else. A dependency
       # that drags in location, storage or contacts fails here.
