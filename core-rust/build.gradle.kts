@@ -80,8 +80,13 @@ val rustFlags = "-C link-arg=-Wl,-z,max-page-size=16384"
  */
 val androidRustProfile = if (project.hasProperty("rustRelease")) "release" else "debug"
 
-/** The host build is never shipped, so it is always debug. */
-const val HOST_RUST_PROFILE = "debug"
+/**
+ * The host build is never shipped, so it is always debug.
+ *
+ * Plain `val`, not `const val`: a build script's body is not a top level in the
+ * sense Kotlin means, so `const` there fails to compile the script.
+ */
+val hostRustProfile = "debug"
 
 val cargoBuild by tasks.registering(Exec::class) {
     group = "rust"
@@ -138,7 +143,7 @@ val generateBindings by tasks.registering(Exec::class) {
     val libraryName = if (OperatingSystem.current().isMacOsX) "libsharewhere.dylib" else "libsharewhere.so"
     // Always the host profile, never androidRustProfile: this library is only
     // read for its FFI metadata, and it is cargoBuildHost that produces it.
-    val library = rustDir.resolve("target/$HOST_RUST_PROFILE/$libraryName")
+    val library = rustDir.resolve("target/$hostRustProfile/$libraryName")
     val out = layout.buildDirectory.dir("generated/uniffi").get().asFile
 
     doFirst {
