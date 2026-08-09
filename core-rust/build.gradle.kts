@@ -64,13 +64,32 @@ val abis = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
  */
 val rustFlags = "-C link-arg=-Wl,-z,max-page-size=16384"
 
+/**
+ * Which Cargo profile goes *into the APK*.
+ *
+ * Worth being deliberate about: a debug Rust build ships unstripped, with full
+ * debug info, for three ABIs — which is most of a 95 MB APK. The release
+ * profile strips symbols and optimises for size, and is what any build someone
+ * installs should carry. Pass `-PrustRelease`.
+ *
+ * This is separate from the *host* build below, which only ever feeds
+ * uniffi-bindgen and the JVM tests and is never packaged, so it stays debug for
+ * build speed. Conflating the two was a live bug: `generateBindings` used to
+ * read this flag and would then look for a host library that `cargoBuildHost`
+ * had never built.
+ */
+val androidRustProfile = if (project.hasProperty("rustRelease")) "release" else "debug"
+
+/** The host build is never shipped, so it is always debug. */
+const val HOST_RUST_PROFILE = "debug"
+
 val cargoBuild by tasks.registering(Exec::class) {
     group = "rust"
     description = "Cross-compiles the Rust core for every Android ABI."
     workingDir = rustDir
     environment("RUSTFLAGS", rustFlags)
 
-    val profile = if (project.hasProperty("rustRelease")) "release" else "debug"
+    val profile = androidRustProfile
     val out = layout.buildDirectory.dir("generated/jniLibs").get().asFile
 
     commandLine(
@@ -117,8 +136,9 @@ val generateBindings by tasks.registering(Exec::class) {
     workingDir = rustDir
 
     val libraryName = if (OperatingSystem.current().isMacOsX) "libsharewhere.dylib" else "libsharewhere.so"
-    val profile = if (project.hasProperty("rustRelease")) "release" else "debug"
-    val library = rustDir.resolve("target/$profile/$libraryName")
+    // Always the host profile, never androidRustProfile: this library is only
+    // read for its FFI metadata, and it is cargoBuildHost that produces it.
+    val library = rustDir.resolve("target/$HOST_RUST_PROFILE/$libraryName")
     val out = layout.buildDirectory.dir("generated/uniffi").get().asFile
 
     doFirst {

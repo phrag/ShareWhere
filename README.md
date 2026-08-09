@@ -129,7 +129,9 @@ notes taken from the matching section of [CHANGELOG.md](CHANGELOG.md).
 
 Builds are **debug-signed**, so they install without keystore setup but will not
 upgrade over a release-signed build later. Signed release builds come with the
-F-Droid work in v1.0.
+F-Droid work in v1.0. The Rust core inside them *is* built with the release
+profile (`-PrustRelease`) — a debug core ships unstripped for three ABIs and
+turns a small app into a ~95 MB download.
 
 ## Building
 

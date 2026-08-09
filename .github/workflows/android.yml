@@ -37,7 +37,12 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --locked
 
-      - run: ./gradlew assembleDebug
+      # -PrustRelease builds the packaged Rust core with the release profile:
+      # stripped and size-optimised. Without it the three unstripped ABI
+      # libraries make the APK ~95 MB, which is absurd for a share-sheet
+      # utility. The APK stays debug-*signed*, so it still installs with no
+      # keystore setup.
+      - run: ./gradlew assembleDebug -PrustRelease
 
       # Publish the build BEFORE running the checks. A failing assertion should
       # not cost you an installable APK that compiled perfectly well.
