@@ -10,7 +10,7 @@
   "version": "2026-08-02",
   "providers": {
     "googlemaps": {
-      "urlPattern": "^https?:\\/\\/(?:[a-z0-9-]+\\.)*?google(?:\\.[a-z]{2,}){1,}\\/maps",
+      "urlPattern": "^https?:\\/\\/(?:[a-z0-9-]+\\.)*?google(?:\\.[a-z]{2,}){1,}\\/maps|^https?:\\/\\/maps\\.google(?:\\.[a-z]{2,}){1,}\\/",
       "completeProvider": false,
       "forceRedirection": false,
       "rules": [
@@ -27,12 +27,24 @@
         "ucbcb",
         "coh",
         "geocode",
-        "opi"
+        "opi",
+        "skid"
       ],
       "rawRules": [],
       "referralMarketing": [],
       "exceptions": [],
       "redirections": []
+    },
+    "googleconsent": {
+      "urlPattern": "^https?:\\/\\/consent\\.(?:google|youtube)(?:\\.[a-z]{2,}){1,}\\/",
+      "completeProvider": false,
+      "forceRedirection": false,
+      "rules": [],
+      "rawRules": [],
+      "referralMarketing": [],
+      "exceptions": [],
+      "redirections": [],
+      "redirectParams": ["continue", "url"]
     },
     "instagram_extra": {
       "urlPattern": "^https?:\\/\\/(?:[a-z0-9-]+\\.)*?instagram\\.com",
@@ -195,7 +207,7 @@
     "amazon.com": ["k", "node", "i", "rh"],
     "amazon.co.uk": ["k", "node", "i", "rh"],
     "amazon.de": ["k", "node", "i", "rh"],
-    "google.com": ["q", "api", "query", "tbm", "ll", "z", "daddr", "saddr"],
+    "google.com": ["q", "api", "query", "tbm", "ll", "z", "daddr", "saddr", "cid", "ftid"],
     "openstreetmap.org": ["mlat", "mlon", "zoom", "layers"],
     "github.com": ["tab", "q", "since", "until"],
     "stackoverflow.com": ["q", "tab"],

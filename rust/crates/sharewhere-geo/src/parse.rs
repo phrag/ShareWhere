@@ -42,13 +42,26 @@ pub enum LocationParse {
         point: GeoPoint,
         source: LocationSource,
     },
-    /// A short link that has to be followed to learn anything.
+    /// The location cannot be worked out offline. `need` says why, so the
+    /// consent prompt can explain the actual reason rather than a generic one.
     NeedsNetwork {
         url: String,
         host: String,
+        need: NetworkNeed,
     },
     Unsupported(Unsupported),
     NotALocation,
+}
+
+/// Why a location cannot be resolved offline.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NetworkNeed {
+    /// A shortener: the URL hides its destination entirely.
+    ShortLink,
+    /// The URL names the place by Google's own feature or place id. The
+    /// destination is not hidden — it simply is not a coordinate, and only
+    /// Google holds the table that turns one into the other.
+    PlaceId,
 }
 
 fn re(cache: &'static OnceLock<Regex>, pattern: &'static str) -> &'static Regex {
@@ -70,6 +83,9 @@ macro_rules! pattern {
 pattern!(google_data, r"!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)");
 pattern!(google_at, r"@(-?\d+\.?\d*),(-?\d+\.?\d*)(?:,(\d+\.?\d*)z)?");
 pattern!(google_place, r"/maps/place/([^/@?]+)");
+// A Google "feature id": the place's identity in a `data=` blob, as
+// `!1s0x<hex>:0x<hex>`. Present when the link names a place but no coordinate.
+pattern!(google_ftid, r"!1s(0x[0-9a-f]+:0x[0-9a-f]+)");
 pattern!(
     plain_pair,
     r"^\s*(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$"
@@ -212,13 +228,17 @@ fn parse_uri(token: &str) -> Option<LocationParse> {
     }
 
     let url = url::Url::parse(token).ok()?;
-    let host = url.host_str()?.to_ascii_lowercase();
-    let host = host.strip_prefix("www.").unwrap_or(&host).to_string();
+    let full_host = url.host_str()?.to_ascii_lowercase();
+    let host = full_host
+        .strip_prefix("www.")
+        .unwrap_or(&full_host)
+        .to_string();
 
     if SHORT_LINK_HOSTS.contains(&host.as_str()) {
         return Some(LocationParse::NeedsNetwork {
             url: token.to_string(),
             host,
+            need: NetworkNeed::ShortLink,
         });
     }
     if host == "omaps.app" || host == "ge0.me" {
@@ -228,10 +248,30 @@ fn parse_uri(token: &str) -> Option<LocationParse> {
         });
     }
     if host.contains("google.") && token.contains("/maps") || host == "maps.google.com" {
-        return parse_google_maps(token).map(|point| LocationParse::Point {
-            point,
-            source: LocationSource::GoogleMaps,
-        });
+        if let Some(point) = parse_google_maps(token) {
+            return Some(LocationParse::Point {
+                point,
+                source: LocationSource::GoogleMaps,
+            });
+        }
+        // A place link can name the place without ever stating where it is:
+        // `/maps/place/Bar+Raval/data=!4m2!3m1!1s0x41652398b4d869f7:0x97d9…`
+        // carries a feature id, and `?cid=` a place id, neither of which is a
+        // coordinate. This is what Google Maps produces when you share a place
+        // rather than a pin, so treating it as "not a location" gave up on one
+        // of the commonest links there is.
+        //
+        // Only Google can turn those ids into a coordinate, so this is the same
+        // deal as a short link: offer to ask, name the host, and do nothing
+        // until the user agrees.
+        if google_ftid().is_match(token) || google_place().is_match(token) || has_cid(&url) {
+            return Some(LocationParse::NeedsNetwork {
+                url: token.to_string(),
+                host: full_host,
+                need: NetworkNeed::PlaceId,
+            });
+        }
+        return None;
     }
     if host == "maps.apple.com" {
         return parse_apple_maps(&url).map(|point| LocationParse::Point {
@@ -308,6 +348,12 @@ fn parse_geo_uri(token: &str) -> Option<GeoPoint> {
     point.zoom = zoom;
     point.accuracy_m = accuracy;
     point.is_valid().then_some(point)
+}
+
+/// `maps.google.com/?cid=<id>` — a place by id, with no coordinate anywhere.
+fn has_cid(url: &url::Url) -> bool {
+    url.query_pairs()
+        .any(|(k, v)| (k == "cid" || k == "ftid") && !v.is_empty())
 }
 
 fn parse_google_maps(token: &str) -> Option<GeoPoint> {

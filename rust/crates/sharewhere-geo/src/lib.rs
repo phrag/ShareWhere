@@ -24,6 +24,7 @@ mod point;
 
 pub use emit::{format_dms, render_all_text, render_links, GeoLink, LinkId, RenderOptions};
 pub use parse::{
-    extract_location_from_html, parse_location, LocationParse, LocationSource, Unsupported,
+    extract_location_from_html, parse_location, LocationParse, LocationSource, NetworkNeed,
+    Unsupported,
 };
 pub use point::{GeoPoint, Precision};

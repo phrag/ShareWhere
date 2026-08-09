@@ -5,8 +5,8 @@
 //! what a share sheet sends.
 
 use sharewhere_geo::{
-    parse_location, render_links, GeoPoint, LinkId, LocationParse, LocationSource, RenderOptions,
-    Unsupported,
+    parse_location, render_links, GeoPoint, LinkId, LocationParse, LocationSource, NetworkNeed,
+    RenderOptions, Unsupported,
 };
 
 /// Assert a parse produced a point near the expected coordinates.
@@ -94,9 +94,58 @@ fn google_maps_links() {
 #[test]
 fn google_short_links_ask_before_resolving() {
     match parse_location("https://maps.app.goo.gl/AbCdEfGhIjK") {
-        LocationParse::NeedsNetwork { host, .. } => assert_eq!(host, "maps.app.goo.gl"),
+        LocationParse::NeedsNetwork { host, need, .. } => {
+            assert_eq!(host, "maps.app.goo.gl");
+            assert_eq!(need, NetworkNeed::ShortLink);
+        }
         other => panic!("expected NeedsNetwork, got {other:?}"),
     }
+}
+
+/// A shared *place*, as opposed to a shared pin, names the place by Google's
+/// own id and states no coordinate anywhere. It used to come back
+/// `NotALocation`, which gave up on one of the commonest links there is.
+#[test]
+fn google_place_ids_offer_to_resolve_rather_than_giving_up() {
+    for link in [
+        // Feature id in a `data=` blob — what sharing a place produces.
+        "https://www.google.com/maps/place/Bar+Raval/data=!4m2!3m1!\
+         1s0x41652398b4d869f7:0x97d977a1ec83f74e!18m1!1e1",
+        // Place id as a query parameter.
+        "https://maps.google.com/?cid=97d977a1ec83f74e",
+        // A named place with neither, which still needs Google to place it.
+        "https://www.google.com/maps/place/Big+Ben",
+    ] {
+        match parse_location(link) {
+            LocationParse::NeedsNetwork { host, need, url } => {
+                assert_eq!(need, NetworkNeed::PlaceId, "{link}");
+                // The full host, not the `www.`-stripped form: it is what the
+                // consent dialog names and what the fetch is allow-listed to.
+                assert!(host.ends_with("google.com"), "{link} -> {host}");
+                assert_eq!(url, link);
+            }
+            other => panic!("expected NeedsNetwork for {link}, got {other:?}"),
+        }
+    }
+}
+
+/// The offline path must not regress: anything carrying a coordinate is still
+/// answered without asking for the network.
+#[test]
+fn google_links_with_coordinates_stay_offline() {
+    expect_point(
+        "https://www.google.com/maps/place/Big+Ben/@51.5007,-0.1246,17z\
+         /data=!3m1!4b1!4m5!3d51.5007!4d-0.1246",
+        51.5007,
+        -0.1246,
+        LocationSource::GoogleMaps,
+    );
+    expect_point(
+        "https://www.google.com/maps/@51.5007,-0.1246,17z",
+        51.5007,
+        -0.1246,
+        LocationSource::GoogleMaps,
+    );
 }
 
 #[test]

@@ -27,6 +27,7 @@ use std::sync::Mutex;
 
 use sharewhere_geo::{
     extract_location_from_html, parse_location, GeoPoint, LocationParse, LocationSource,
+    NetworkNeed,
 };
 use sharewhere_url::{sanitize_text, Sanitized};
 
@@ -40,6 +41,8 @@ pub enum FetchReason {
     ShortLinkExpansion,
     /// The final page's URL had no coordinates; look in the body.
     HtmlCoordinateExtraction,
+    /// The link names a place by Google's own id rather than by coordinate.
+    PlaceIdLookup,
 }
 
 impl FetchReason {
@@ -52,6 +55,11 @@ impl FetchReason {
             FetchReason::HtmlCoordinateExtraction => {
                 "The link resolved but carries no coordinates. \
                  Reading the page contacts the host below."
+            }
+            FetchReason::PlaceIdLookup => {
+                "This link names the place by Google's own id, not by \
+                 coordinates, so only Google can say where it is. Looking \
+                 it up contacts the host below."
             }
         }
     }
@@ -137,11 +145,43 @@ const TIMEOUT_MS: u32 = 8_000;
 /// Deliberately generic. A distinctive agent string is a fingerprint.
 const USER_AGENT: &str = "Mozilla/5.0 (compatible; ShareWhere)";
 
-/// Hosts a short-link expansion is allowed to touch, including the consent and
+/// Clean a URL so the location parser sees through any wrapper around it.
+///
+/// Returns `None` — meaning "use the original" — whenever cleaning would not
+/// help or cannot be trusted to have preserved the location:
+///
+///   * the input is not a single URL at all (`geo:`, raw coordinates, prose);
+///   * cleaning changed nothing;
+///   * the cleaned form no longer parses as a location while the original did.
+///
+/// That last case is the safety net. Sanitising is not supposed to be able to
+/// lose a coordinate — `q`, `ll`, `cid` and friends are on the never-remove
+/// safelist precisely so it cannot — but a future rule could, and losing a
+/// location outright is a much worse failure than leaving a tracker on.
+fn unwrap_for_parsing(input: &str, opts: &sharewhere_url::SanitizeOptions) -> Option<String> {
+    let cleaned = sharewhere_url::sanitize_url(input, opts).ok()?;
+    if !cleaned.changed {
+        return None;
+    }
+    if matches!(
+        parse_location(&cleaned.cleaned),
+        LocationParse::NotALocation
+    ) && !matches!(parse_location(input), LocationParse::NotALocation)
+    {
+        return None;
+    }
+    Some(cleaned.cleaned)
+}
+
+/// Hosts a location lookup is allowed to touch, including the consent and
 /// regional hosts Google bounces through.
 fn allowed_hosts_for(host: &str) -> Vec<String> {
     let mut hosts = vec![host.to_string()];
-    if host.ends_with("goo.gl") || host == "g.co" {
+    // Google answers a maps request from outside its consent regime with a
+    // redirect to consent.google.com, and inside it with one to a country
+    // domain. Both are the same hop as far as the user is concerned, so the
+    // allow-list has to cover them or the resolve dead-ends.
+    if host.ends_with("google.com") || host.ends_with("goo.gl") || host == "g.co" {
         hosts.extend(
             [
                 "maps.app.goo.gl",
@@ -246,31 +286,48 @@ impl ResolveSession {
 
     /// First step: try to answer entirely offline.
     fn begin(&self, input: &str, state: &mut State) -> Step {
+        // Clean before parsing, not after.
+        //
+        // The wrapper a link arrives in can hide the location from the parser
+        // entirely. A shared Google Maps place in the EU comes through
+        // `consent.google.com/ml?continue=<the real link>`, and parsing that
+        // as-is either finds nothing or — worse — offers to contact
+        // `consent.google.com`, which is not where the answer lives. Unwrapping
+        // first is free, happens offline, and can turn a link that needed the
+        // network into one that does not.
+        let unwrapped = unwrap_for_parsing(input, &self.options.sanitize);
+        let input = unwrapped.as_deref().unwrap_or(input);
+
         match parse_location(input) {
             LocationParse::Point { point, source } => {
                 Step::Done(Outcome::Location { point, source })
             }
 
-            LocationParse::NeedsNetwork { url, host } => {
+            LocationParse::NeedsNetwork { url, host, need } => {
+                let reason = match need {
+                    NetworkNeed::ShortLink => FetchReason::ShortLinkExpansion,
+                    NetworkNeed::PlaceId => FetchReason::PlaceIdLookup,
+                };
                 if !self.options.allow_network {
                     // The default path. Nothing has left the device.
-                    return Step::Done(Outcome::NeedsConsent {
-                        url,
-                        host,
-                        reason: FetchReason::ShortLinkExpansion,
-                    });
+                    return Step::Done(Outcome::NeedsConsent { url, host, reason });
                 }
                 state.visited.push(host.clone());
                 Step::Fetch(FetchRequest {
                     allowed_hosts: allowed_hosts_for(&host),
                     url,
-                    method: HttpMethod::Head,
+                    // A place id is not hidden behind a redirect, so there is
+                    // nothing for a HEAD to reveal -- the answer is in the page.
+                    method: match need {
+                        NetworkNeed::ShortLink => HttpMethod::Head,
+                        NetworkNeed::PlaceId => HttpMethod::Get,
+                    },
                     follow_redirects: false,
                     max_body_bytes: MAX_BODY_BYTES,
                     timeout_ms: TIMEOUT_MS,
                     send_cookies: false,
                     user_agent: USER_AGENT.to_string(),
-                    reason: FetchReason::ShortLinkExpansion,
+                    reason,
                 })
             }
 
@@ -425,6 +482,55 @@ mod tests {
         Options {
             allow_network,
             ..Options::default()
+        }
+    }
+
+    /// A real link, shared from Google Maps inside the EU. It arrives wrapped
+    /// in `consent.google.com`, and the wrapper is what the parser used to see.
+    ///
+    /// Three things have to be true at once: the wrapper is unwrapped offline,
+    /// the consent prompt names the host that actually holds the answer rather
+    /// than the wrapper, and the URL we would fetch is the *cleaned* one — so
+    /// agreeing does not hand Google back the session id we just stripped.
+    #[test]
+    fn a_consent_wrapped_place_is_unwrapped_before_anyone_is_asked_anything() {
+        let link = "https://consent.google.com/ml?continue=\
+                    https://www.google.com/maps/place/Bar%2BRaval/data%3D!4m2!3m1!\
+                    1s0x41652398b4d869f7:0x97d977a1ec83f74e!18m1!1e1\
+                    ?utm_source%3Dmstt_1%26entry%3Dgps%26skid%3D47f68493-9581-454c-97b5-919012dfb92a\
+                    &gl=DE&hl=de";
+
+        match ResolveSession::new(link, options(false)).advance() {
+            Step::Done(Outcome::NeedsConsent { url, host, reason }) => {
+                assert_eq!(host, "www.google.com", "named the wrapper, not the answer");
+                assert_eq!(reason, FetchReason::PlaceIdLookup);
+                assert!(!url.contains("consent.google.com"), "{url}");
+                assert!(!url.contains("skid"), "session id survived into {url}");
+                assert!(!url.contains("entry=gps"), "{url}");
+                // The place's own id is the only thing identifying it, so it
+                // must come through untouched.
+                assert!(
+                    url.contains("1s0x41652398b4d869f7:0x97d977a1ec83f74e"),
+                    "{url}"
+                );
+            }
+            other => panic!("expected NeedsConsent, got {other:?}"),
+        }
+    }
+
+    /// The same wrapper around a link that *does* carry coordinates. Unwrapping
+    /// it offline turns a request-needing link into one answered on the device.
+    #[test]
+    fn unwrapping_the_consent_wrapper_can_remove_the_need_to_ask_at_all() {
+        let link = "https://consent.google.com/ml?continue=\
+                    https://www.google.com/maps/%4051.5007,-0.1246,17z&gl=DE";
+
+        match ResolveSession::new(link, options(false)).advance() {
+            Step::Done(Outcome::Location { point, .. }) => {
+                assert!((point.lat - 51.5007).abs() < 0.001);
+                assert!((point.lon + 0.1246).abs() < 0.001);
+            }
+            other => panic!("expected an offline location, got {other:?}"),
         }
     }
 

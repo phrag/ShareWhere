@@ -17,6 +17,9 @@ pub struct CompiledProvider {
     pub url_pattern: Option<Regex>,
     pub exceptions: Option<RegexSet>,
     pub redirections: Vec<Regex>,
+    /// Query parameter names whose value is a wrapped destination URL. Plain
+    /// strings, not regexes: they are matched against a decoded key.
+    pub redirect_params: Vec<String>,
     pub raw_rules: Vec<Regex>,
     pub rules: Option<RegexSet>,
     pub referral: Option<RegexSet>,
@@ -74,6 +77,7 @@ fn compile(provider: &Provider, global: bool) -> CompiledProvider {
             .iter()
             .filter_map(|p| whole(p))
             .collect(),
+        redirect_params: provider.redirect_params.clone(),
         raw_rules: provider.raw_rules.iter().filter_map(|p| whole(p)).collect(),
         rules: set(&provider.rules, param),
         referral: set(&provider.referral_marketing, param),

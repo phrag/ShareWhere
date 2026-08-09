@@ -316,6 +316,7 @@ pub enum HttpMethod {
 pub enum FetchReason {
     ShortLinkExpansion,
     HtmlCoordinateExtraction,
+    PlaceIdLookup,
 }
 
 /// A request the core wants made, with the policy it must be made under.
@@ -412,6 +413,7 @@ impl ResolveSession {
                     user_agent: request.user_agent,
                     reason: match request.reason {
                         core::FetchReason::ShortLinkExpansion => FetchReason::ShortLinkExpansion,
+                        core::FetchReason::PlaceIdLookup => FetchReason::PlaceIdLookup,
                         core::FetchReason::HtmlCoordinateExtraction => {
                             FetchReason::HtmlCoordinateExtraction
                         }

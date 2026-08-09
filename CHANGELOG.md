@@ -25,11 +25,25 @@ newest build of the branch:
   short-link resolution at all, coordinate precision (exact / ~100 m / ~1 km),
   place-name inclusion, always-preview, and the `geo:`/`om:` link handlers.
 - A consent dialog before any network request, naming the host it will contact.
+- Google's `consent.google.com` wrapper is unwrapped offline. In the EU this is
+  what a shared Maps link actually looks like, and everything useful is hidden
+  inside its `continue` parameter.
+- Google Maps links that name a place by id rather than by coordinate — the
+  normal result of sharing a place rather than a pin — now offer to resolve
+  instead of reporting nothing.
 - `cargo-fuzz` targets for `sanitize_url`, `sanitize_text`, `parse_location` and
   the Plus Code / `ge0` codecs, run nightly in CI. They assert the safety
   invariants — host and scheme preserved, parameters only ever removed, codecs
   round-trip, "strip place name" really strips it — rather than only checking
   that nothing panics.
+
+### Changed
+
+- Locations are now cleaned before they are parsed. Unwrapping a wrapper first
+  can remove the need for a network request entirely, and when it cannot, the
+  consent dialog names the host that actually holds the answer and the request
+  carries the *stripped* URL — so agreeing does not hand back the session id
+  that was just removed.
 
 ### Fixed
 

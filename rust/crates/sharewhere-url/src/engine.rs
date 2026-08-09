@@ -474,11 +474,48 @@ fn decode(s: &str) -> String {
 
 /// Pull a wrapped destination URL out of a redirector.
 fn find_redirect(cur: &str, compiled: &CompiledProvider) -> Option<String> {
+    // Named parameters first. They are exact where the regexes are a guess, so
+    // when a provider offers both, the unambiguous answer should win.
+    if let Some(target) = find_redirect_param(cur, compiled) {
+        return Some(target);
+    }
+
     for rule in &compiled.redirections {
         let captures = rule.captures(cur)?;
         if let Some(m) = captures.get(1) {
             if let Some(target) = extract_target(m.as_str()) {
                 return Some(target);
+            }
+        }
+    }
+    None
+}
+
+/// Pull a wrapped destination out of a named query parameter.
+///
+/// The whole point of naming the parameter is that `query_pairs` decodes the
+/// value exactly once — which is not a heuristic but the definition of what a
+/// query value is — so there is no "how many rounds?" question to get wrong.
+/// See `Provider::redirect_params` for why that question has no general answer.
+fn find_redirect_param(cur: &str, compiled: &CompiledProvider) -> Option<String> {
+    if compiled.redirect_params.is_empty() {
+        return None;
+    }
+    let url = Url::parse(cur).ok()?;
+
+    for (key, value) in url.query_pairs() {
+        if !compiled
+            .redirect_params
+            .iter()
+            .any(|p| p.eq_ignore_ascii_case(&key))
+        {
+            continue;
+        }
+        // SECURITY: same rule as the regex path, for the same reason — the
+        // value is entirely attacker-controlled. Only http(s) comes back out.
+        if let Ok(parsed) = Url::parse(&value) {
+            if matches!(parsed.scheme(), "http" | "https") {
+                return Some(value.into_owned());
             }
         }
     }

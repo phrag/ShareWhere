@@ -67,10 +67,20 @@ by androidx under our own application id at `signature` level, so only
 ShareWhere can hold it, guarding a receiver androidx registers internally. CI
 fails the build if anything beyond those two appears.
 
-Google Maps share links (`maps.app.goo.gl/…`) carry no coordinates at all, so
-they genuinely cannot be resolved offline. ShareWhere offers to follow one, and
-asks first — naming the host — every time. You can turn the offer off entirely
-in Settings, in which case it never asks and never connects.
+Two shapes of Google Maps link genuinely cannot be resolved offline, and both
+are common: `maps.app.goo.gl/…` carries no coordinates at all, and a shared
+*place* names itself by Google's own id (`data=…!1s0x4165…:0x97d9…`, or `?cid=`)
+rather than by coordinate. ShareWhere offers to look either up, and asks first —
+naming the host, and saying which of the two reasons applies — every time. You
+can turn the offer off entirely in Settings, in which case it never asks and
+never connects.
+
+Cleaning happens *before* any of that, which is what makes the offer honest.
+In the EU a shared Maps link arrives wrapped in `consent.google.com/ml?continue=…`;
+unwrapping that offline sometimes reveals coordinates and removes the need to
+ask at all, and when it does not, the request that consent authorises carries
+the *stripped* URL — so agreeing does not hand back the session id ShareWhere
+just removed.
 
 **No analytics, no crash reporter, no Play Services.** URLs never reach logcat
 in release builds.
@@ -139,7 +149,7 @@ turns a small app into a ~95 MB download.
 
 ```bash
 cd rust
-cargo test --workspace                                  # 78 tests
+cargo test --workspace                                  # 82 tests
 cargo run -p sharewhere-cli -- clean '<url>'            # try one link
 cargo run -p sharewhere-cli -- corpus testdata/dirty_urls.jsonl
 ```
@@ -182,7 +192,7 @@ leaked into `ResolveCoordinator`'s public signature and broke the app module.
 
 | | |
 |---|---|
-| Rust core | complete — 78 tests, clippy and rustfmt clean |
+| Rust core | complete — 82 tests, clippy and rustfmt clean |
 | Fuzzing | four targets, clean over a combined ~4.7 M executions |
 | Plus Codes | matches all 302 upstream reference vectors exactly |
 | `ge0` codec | matches Organic Maps' own test vectors |

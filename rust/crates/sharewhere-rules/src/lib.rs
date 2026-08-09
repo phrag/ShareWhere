@@ -56,6 +56,23 @@ pub struct Provider {
     /// Patterns whose first capture group is a wrapped destination URL.
     #[serde(default)]
     pub redirections: Vec<String>,
+
+    /// Query parameters whose *value* is a wrapped destination URL.
+    ///
+    /// Our own extension; ClearURLs has no equivalent. It exists because
+    /// `redirections` is a regex over the raw URL text, which leaves the engine
+    /// guessing how many times to percent-decode what it captured — and there
+    /// is no way to guess right in general. `consent.google.com/ml?continue=…`
+    /// is the case that forces the issue: Google leaves the target's `://` and
+    /// `?` literal but encodes the `=` and `&` inside its query, so the capture
+    /// parses as a URL while still being half-encoded. Stopping there yields a
+    /// URL whose parameters cannot be split; decoding again would corrupt a
+    /// target that legitimately contains an encoded delimiter.
+    ///
+    /// Naming the parameter instead removes the guess. A query value is decoded
+    /// exactly once, by definition, and `Url::query_pairs` does precisely that.
+    #[serde(rename = "redirectParams", default)]
+    pub redirect_params: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
