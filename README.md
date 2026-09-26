@@ -1,249 +1,166 @@
 # ShareBear
 
-Share a link to ShareBear and it comes back without the tracking. Share a
-location and you get every map format at once.
+**ShareBear cleans tracking junk out of links.** Share any link to it —
+from Instagram, Amazon, Google, wherever — the way you'd share to any other
+app, and you get the same link back with the tracking stripped, either
+copied to your clipboard or ready to share onward. It can also turn a
+shared map pin into links for other map apps, offline.
 
 Android app, Rust core, GPL-3.0-or-later.
 
-> **Status: the Rust core is complete and tested. The Android layer builds in
-> CI.** See [Current state](#current-state) and
-> [Getting a build](#getting-a-build).
+> **Status:** the Rust core is complete and tested; the Android app builds
+> green in CI but hasn't been run on a real phone yet. See
+> [Current state](#current-state).
 
-## What it does
+## How it works
 
-**Clean a link.** Pick ShareBear from the share sheet and the tracking comes
-off — Instagram's `igshid`, Amazon's `/ref=` path segment and affiliate `tag`,
-`utm_*`, `fbclid`, and about 200 other providers' worth. Two share targets:
-**Clean Copy** finishes without showing a screen, with a brief popup naming what
-it removed; **Clean Share** shows the full list first, then re-shares.
+1. Share a link from any app (or long-press a URL and pick ShareBear from
+   the text-selection menu).
+2. Pick **Clean Copy** to strip it and copy the result silently, or
+   **Clean Share** to see exactly what got removed before re-sharing.
 
 ```
 https://www.amazon.co.uk/dp/B08N5WRWNW/ref=sr_1_3?crid=2ABCDEF&keywords=usb+hub&qid=1712345678&tag=someaffiliate-21
 → https://www.amazon.co.uk/dp/B08N5WRWNW
 ```
 
-Wrapped redirects are unwrapped *and* the destination is cleaned too:
+A wrapped redirect (Google's `/url?q=…`, a `consent.google.com` wrapper) is
+unwrapped and the real destination is cleaned too, all offline. Roughly 200
+tracking providers are covered, plus Instagram's `igshid`/`stkn`, Amazon's
+`tag`/`/ref=`, and Google Maps, which nothing else covers.
 
-```
-https://www.google.com/url?q=https%3A%2F%2Fexample.com%2Fpage%3Futm_source%3Dnews&sa=D&ved=2ahUKEwi
-→ https://example.com/page
-```
+**Locations, as a bonus.** Share a pin from Google Maps, Organic Maps, or a
+`geo:` link, and ShareBear hands back the same spot as a `geo:` link, a
+clean Google Maps link, three Organic Maps forms, Apple Maps, OpenStreetMap,
+a Plus Code, and plain coordinates — so whoever you send it to can open it
+in whatever they use.
 
-**Share a location everywhere at once.** Share from Google Maps, Organic Maps, a
-`geo:` link or plain coordinates, and get back all eleven formats: a `geo:` link
-any maps app can open, a tracker-free Google Maps link, three Organic Maps forms
-including the compact `ge0` short link, Apple Maps, OpenStreetMap, a Plus Code,
-and the coordinates in decimal and DMS.
+## Privacy
 
-## What it doesn't do
+**One permission — `INTERNET` — and it's unused by default.** Cleaning a
+link never touches the network. The only time ShareBear needs to, it's
+because a link doesn't carry enough to work with offline (a `maps.app.goo.gl`
+short link, or a Maps link that names a place by Google's internal id rather
+than a coordinate) — and even then it asks first, naming the exact host,
+every time. There's no "always allow"; each request is a one-off. Turn the
+offer off in Settings and it never asks and never connects.
 
-**No what3words.** Converting an address needs their API, which means an API key
-and handing them the coordinates, your IP address and a timestamp on every
-lookup. Plus Codes do the same job entirely offline, so that is what ShareBear
-uses. A `///word.word.word` is recognised and explained rather than silently
-failing.
-
-**No silent network access.** One APK, one permission: `INTERNET`. Nothing
-reaches the network until you tap through a dialog naming the exact host.
-
-Being precise about the mechanism, because it is not what people assume:
-`INTERNET` is a *normal* Android permission, granted at install time, and the
-platform provides **no way to request it at runtime**. No app can put a system
-permission dialog in front of you for it. So ShareBear gates itself instead —
-the Rust core refuses to emit a request until `allowNetwork` is set, and that is
-only ever set for a single resolve, from the consent dialog. There is no "always
-allow".
-
-What you can still verify mechanically is that nothing *else* crept in:
+You can check this yourself:
 
 ```
 ./gradlew assembleRelease
 apkanalyzer manifest permissions app-release.apk
 ```
 
-Two lines: `android.permission.INTERNET`, and
-`app.sharebear.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` — the latter defined
-by androidx under our own application id at `signature` level, so only
-ShareBear can hold it, guarding a receiver androidx registers internally. CI
-fails the build if anything beyond those two appears.
+Two lines, always: `android.permission.INTERNET`, and an androidx-internal
+signature permission neither app nor anyone else can use. CI fails the
+build if anything else shows up. No analytics, no crash reporter, no Play
+Services, and URLs never reach logcat in release builds.
 
-Two shapes of Google Maps link genuinely cannot be resolved offline, and both
-are common: `maps.app.goo.gl/…` carries no coordinates at all, and a shared
-*place* names itself by Google's own id (`data=…!1s0x4165…:0x97d9…`, or `?cid=`)
-rather than by coordinate. ShareBear offers to look either up, and asks first —
-naming the host, and saying which of the two reasons applies — every time. You
-can turn the offer off entirely in Settings, in which case it never asks and
-never connects.
-
-Cleaning happens *before* any of that, which is what makes the offer honest.
-In the EU a shared Maps link arrives wrapped in `consent.google.com/ml?continue=…`;
-unwrapping that offline sometimes reveals coordinates and removes the need to
-ask at all, and when it does not, the request that consent authorises carries
-the *stripped* URL — so agreeing does not hand back the session id ShareBear
-just removed.
-
-**No analytics, no crash reporter, no Play Services.** URLs never reach logcat
-in release builds.
-
-## How it is put together
+## How it's built
 
 ```
 rust/crates/
-  sharebear-rules   vendored ClearURLs catalog + our own layer + build-time index
-  sharebear-url     the sanitiser engine          ─┐ pure, no I/O,
-  sharebear-geo     parsers, Plus Codes, ge0      ─┘ independently fuzzed
-  sharebear-core    policy + the resolve state machine
+  sharebear-rules   vendored ClearURLs catalog + our own rules + a build-time index
+  sharebear-url     the sanitiser engine        ─┐ pure, no I/O,
+  sharebear-geo     location parsers, codecs    ─┘ independently fuzzed
+  sharebear-core    policy + the network-resolve state machine
   sharebear-ffi     UniFFI wrappers, nothing else
-  sharebear-cli     development tool
+  sharebear-cli     a dev tool for trying links from the terminal
 
 app/         Compose UI, share targets, settings
 core-rust/   cargo-ndk + uniffi-bindgen, JNA
-core-net/    OkHttp transport — the only module that can reach the network
+core-net/    OkHttp — the only module allowed to touch the network
 ```
 
-Three decisions worth knowing:
-
-**The rules are vendored, and the engine is ours.** The `clearurls` crate on
-crates.io is stale at 0.0.4 (September 2024) and would bake in two-year-old
-rules. Vendoring the catalog also gets us the removed-parameter report the
-preview needs, and lets us cover Google Maps, which ClearURLs does not touch at
-all. All 1095 of its regexes were checked for lookaheads and backreferences —
-there are none — so they compile as-is under the Rust `regex` crate.
-
-**Nothing is compiled eagerly.** Compiling the whole catalog costs 50–150 ms,
-far too slow for a share-sheet activity. A build-time index extracts the first
-literal domain label from each provider's pattern (199 of 206 reduce cleanly),
-so a URL compiles only the one or two providers that could match it.
-
-**The core never opens a socket.** When a request is genuinely unavoidable, the
-core says what to fetch and how to read the answer; `core-net` moves the bytes.
-Each request carries its own policy — allowed hosts, no redirect following, no
-cookies, a 64 KB cap — and both layers enforce it, because the redirect target
-is chosen by whoever controls the link.
+The rules catalog is vendored and extended rather than pulled in as a
+dependency (the crates.io one is stale), and nothing is compiled until a
+link actually needs it — compiling the whole catalog eagerly would cost
+50–150 ms, too slow for a share-sheet tap. The core itself never opens a
+socket: when a request is unavoidable, it says exactly what to fetch and
+how to read the answer, and `core-net` is the only thing that moves bytes,
+enforcing that policy independently rather than trusting it.
 
 ## Getting a build
 
 ### [⬇ sharebear-dev.apk](https://github.com/phrag/ShareBear/releases/download/dev-build/sharebear-dev.apk)
 
-That link always serves the newest build — bookmark it. Every push to `main` or
-a `claude/**` branch replaces it, and it needs no GitHub login, so it opens
-straight from a phone.
+That link always serves the newest build — bookmark it, no GitHub login
+needed. It's rebuilt on every push to `main` or a `claude/**` branch; see
+the [`dev-build` release](https://github.com/phrag/ShareBear/releases/tag/dev-build)
+for which commit it's from. Tagging `vX.Y.Z` publishes a versioned release
+with notes from [CHANGELOG.md](CHANGELOG.md) instead.
 
-The [`dev-build` pre-release](https://github.com/phrag/ShareBear/releases/tag/dev-build)
-page shows which branch and commit it came from. Each run also uploads a
-`sharebear-apk-<sha>` workflow artifact, with the size and full SHA-256 printed
-in the run summary, if you want a specific commit rather than the latest.
+Builds are debug-signed, so they install with no keystore setup but won't
+upgrade over a signed release later (that comes with F-Droid, in v1.0).
 
-Tagging `v0.2.0` (or any `x.y.z`) publishes a versioned release instead, with
-notes taken from the matching section of [CHANGELOG.md](CHANGELOG.md).
+## Building it yourself
 
-Builds are **debug-signed**, so they install without keystore setup but will not
-upgrade over a release-signed build later. Signed release builds come with the
-F-Droid work in v1.0. The Rust core inside them *is* built with the release
-profile (`-PrustRelease`) — a debug core ships unstripped for three ABIs and
-turns a small app into a ~95 MB download.
-
-## Building
-
-**The Rust core** needs nothing but a Rust toolchain:
+**Rust core**, needs only a Rust toolchain:
 
 ```bash
 cd rust
-cargo test --workspace                                  # 82 tests
+cargo test --workspace                                # 82 tests
 cargo run -p sharebear-cli -- clean '<url>'            # try one link
 cargo run -p sharebear-cli -- corpus testdata/dirty_urls.jsonl
 ```
 
-**Fuzzing** needs nightly, since `cargo fuzz` builds with `-Zsanitizer=address`:
+**Fuzzing**, needs nightly:
 
 ```bash
 cargo install cargo-fuzz --locked
-rust/fuzz/seed-corpus.sh              # seeds generated from the golden corpus
-cd rust
-cargo +nightly fuzz run sanitize_url -- -max_total_time=60
+rust/fuzz/seed-corpus.sh
+cd rust && cargo +nightly fuzz run sanitize_url -- -max_total_time=60
 ```
 
-Targets: `sanitize_url`, `sanitize_text`, `parse_location`, `geo_codecs`. They
-assert the safety invariants, not just panic-freedom — a sanitiser that quietly
-rewrites a link to point somewhere else never crashes. `.github/workflows/fuzz.yml`
-runs all four nightly and for two minutes each on a pull request that touches
-them.
+Four targets (`sanitize_url`, `sanitize_text`, `parse_location`,
+`geo_codecs`) check safety invariants, not just crash-freedom — a
+sanitiser that quietly rewrites a link to point somewhere else never
+crashes. They run nightly in CI, and briefly on any PR that touches them.
 
-**The app** additionally needs the Android SDK, NDK r27+ (for 16 KB page
-alignment, mandatory on Android 15+) and `cargo-ndk`:
+**The app** additionally needs the Android SDK, NDK r27+, and `cargo-ndk`:
 
 ```bash
 cargo install cargo-ndk --locked
 ./gradlew assembleDebug
 ```
 
-**Without an Android SDK**, a useful amount is still checkable locally. The
-generated UniFFI bindings and `core-net`'s `ResolveCoordinator` use no Android
-APIs at all — only JNA, OkHttp, coroutines and the JDK — so they compile in a
-plain JVM Gradle project.
-
-Mirror the real module boundaries when you do this, with OkHttp as an
-`implementation` dependency of the `net` module and absent from `app`. A single
-flat module with every dependency on the classpath will compile code that then
-fails in the real build: that is exactly how an `OkHttpClient` default argument
-leaked into `ResolveCoordinator`'s public signature and broke the app module.
+Without an Android SDK, the generated UniFFI bindings and the OkHttp
+transport still compile and test as a plain JVM project — see the Gradle
+modules above for how they're kept separate from Android-only code.
 
 ## Current state
 
 | | |
 |---|---|
 | Rust core | complete — 82 tests, clippy and rustfmt clean |
-| Fuzzing | four targets, clean over a combined ~4.7 M executions |
-| Plus Codes | matches all 302 upstream reference vectors exactly |
-| `ge0` codec | matches Organic Maps' own test vectors |
-| UniFFI bindings | generate and compile against JNA on the JVM |
-| Android app | builds green in CI, APK published per run |
+| Fuzzing | 4 targets, clean over ~4.7M combined executions |
+| Android app | builds green in CI, APK published on every push |
 | On a real device | **not yet tried** |
 
-Everything above is verified by machine. What nobody has done yet is install the
-APK and share a link into it, so the end-to-end behaviour — do both share
-targets appear, does the clipboard write land, does the consent dialog read
-sensibly — is still unconfirmed. That is the next thing worth doing, and the
-most likely place for a surprise.
-
-### Known gaps
-
-- **Nothing is verified on a device.** Settings, the consent dialog and the
-  removal popup all compile and pass CI, but none of them has been seen
-  working.
-- **Cleaning free text is not idempotent once a redirect is unwrapped.** The
-  unwrapped target is percent-decoded out of the wrapper, so it can contain
-  characters — `>`, for one — that the URL scanner treats as ending a URL, and
-  the spliced text then tokenises differently. Cleaning always *settles*, and
-  the fuzzer asserts that, but it can take two rounds. A single URL is
-  unaffected. Fixing it means re-encoding unwrapped targets through the `Url`
-  serialiser, which mangles links that were fine, so it is not obviously worth
-  doing.
-- **Redirect unwrapping is capped** at five hops, so a wrapper nested deeper
-  comes back partly wrapped. Deliberate — the cap is what stops a crafted link
-  costing unbounded work.
+Everything above is machine-verified. Nobody has installed the APK and
+shared a link into it yet, so whether the share targets actually appear,
+the clipboard write lands, and the consent dialog reads sensibly in
+practice is still unconfirmed — that's the next thing worth doing.
 
 ### Roadmap
 
-- ~~**v0.3** — wire the consent prompt to `core-net`~~ — done. Tapping "Resolve
-  this one link" now drives the Rust resolve session through OkHttp and replaces
-  the prompt with the location behind the short link. Untried on a device.
 - **v0.2** — per-domain toggles, i18n, a manual paste box
 - **v1.0** — F-Droid, reproducible builds, accessibility pass
-- **v2** — a map image; offline PMTiles regions preferred over fetching tiles,
-  since a tile request tells a server exactly where you are looking
+- **v2** — a map image, using offline map tiles rather than fetching them
+  (a tile request tells a server exactly where you're looking)
 
 ## Contributing
 
-The most useful contribution is a **real dirty URL that ShareBear handles
-badly** — either one it fails to clean, or worse, one it breaks. Add it to
-`rust/testdata/dirty_urls.jsonl` with a note, then fix the engine. Cases where
-the right answer is "change nothing" matter as much as the ones that strip
-something: a sanitiser that mangles working links is worse than no sanitiser.
+The most useful contribution is a **real link ShareBear handles badly** —
+one it fails to clean, or worse, breaks. Add it to
+`rust/testdata/dirty_urls.jsonl` with a note, then fix the engine. A case
+where the right answer is "change nothing" matters just as much as one
+that strips something: a sanitiser that mangles working links is worse
+than no sanitiser at all.
 
 ## Licence
 
-GPL-3.0-or-later. The bundled ClearURLs rule catalog is LGPL-3.0 and remains
-available under that licence — see [NOTICE](NOTICE) for full attribution,
-including the Open Location Code and Organic Maps specifications this
-implements.
+GPL-3.0-or-later. The bundled ClearURLs catalog is LGPL-3.0 and stays
+under that licence — see [NOTICE](NOTICE) for full attribution, including
+the Open Location Code and Organic Maps specifications this implements.
