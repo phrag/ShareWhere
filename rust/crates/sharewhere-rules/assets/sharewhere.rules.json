@@ -50,7 +50,7 @@
       "urlPattern": "^https?:\\/\\/(?:[a-z0-9-]+\\.)*?instagram\\.com",
       "completeProvider": false,
       "forceRedirection": false,
-      "rules": ["img_index", "hl"],
+      "rules": ["img_index", "hl", "stkn"],
       "rawRules": [],
       "referralMarketing": [],
       "exceptions": [],

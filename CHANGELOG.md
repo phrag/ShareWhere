@@ -28,6 +28,9 @@ newest build of the branch:
 - Google's `consent.google.com` wrapper is unwrapped offline. In the EU this is
   what a shared Maps link actually looks like, and everything useful is hidden
   inside its `continue` parameter.
+- Instagram's `stkn` share token is stripped. Upstream ClearURLs covers
+  `igshid` and `igsh` but not this one, which is what Instagram attaches to a
+  reel or story link today.
 - Google Maps links that name a place by id rather than by coordinate — the
   normal result of sharing a place rather than a pin — now offer to resolve
   instead of reporting nothing.
