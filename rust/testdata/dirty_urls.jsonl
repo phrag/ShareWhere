@@ -26,7 +26,7 @@
 
 // --- Instagram ---
 {"input": "https://www.instagram.com/p/CxYzAbCdEfG/?igshid=MzRlODBiNWFlZA%3D%3D", "expected": "https://www.instagram.com/p/CxYzAbCdEfG/", "note": "the classic Instagram share param", "provider": "instagram"}
-{"input": "https://www.instagram.com/p/CxYzAbCdEfG/?igshid=abc&img_index=1", "expected": "https://www.instagram.com/p/CxYzAbCdEfG/", "note": "img_index is ShareWhere's addition, upstream misses it", "provider": "instagram_extra"}
+{"input": "https://www.instagram.com/p/CxYzAbCdEfG/?igshid=abc&img_index=1", "expected": "https://www.instagram.com/p/CxYzAbCdEfG/?img_index=1", "note": "SAFELIST: img_index picks which slide of a carousel opens. It is view state, not a tracker -- it names no person, share or session -- so stripping it silently changed what the recipient sees. ShareWhere used to remove it.", "provider": "instagram_extra"}
 {"input": "https://www.instagram.com/reel/AbC123/?igsh=xyz789", "expected": "https://www.instagram.com/reel/AbC123/", "note": "igsh is the newer form of igshid", "provider": "instagram"}
 
 // --- Amazon ---
@@ -74,3 +74,4 @@
 {"input": "https://maps.google.com/?cid=97d977a1ec83f74e&entry=ttu", "expected": "https://maps.google.com/?cid=97d977a1ec83f74e", "note": "SAFELIST: cid names the place itself, so removing it would break the link entirely", "provider": "googlemaps"}
 {"input": "https://www.instagram.com/reel/DbnliQlsJEX/?stkn=cDhlcDc0ZW91NG5t", "expected": "https://www.instagram.com/reel/DbnliQlsJEX/", "note": "REAL LINK. stkn is a share token -- base64 of `p8ep74eou4nm` -- that Instagram now attaches instead of igshid. Upstream ClearURLs has igshid and igsh but not this.", "provider": "instagram_extra"}
 {"input": "https://www.instagram.com/stories/someuser/3412345678901234567/?stkn=abc123", "expected": "https://www.instagram.com/stories/someuser/3412345678901234567/", "note": "the same token on a story; the story id is in the path and must survive", "provider": "instagram_extra"}
+{"input": "https://www.instagram.com/p/C8xYzAbCdEf/?img_index=3&igshid=MzRl&stkn=abc&hl=de&utm_source=ig_web_copy_link", "expected": "https://www.instagram.com/p/C8xYzAbCdEf/?img_index=3", "note": "everything identifying goes -- igshid, stkn, the locale, the utm -- and the carousel position stays", "provider": "instagram_extra"}

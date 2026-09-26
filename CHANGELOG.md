@@ -21,6 +21,9 @@ newest build of the branch:
 - Location sharing in eleven formats at once — `geo:`, a tracker-free Google
   Maps link, three Organic Maps forms including the compact `ge0` short link,
   Apple Maps, OpenStreetMap, Plus Code, decimal degrees and DMS.
+- Instagram's `img_index` is on the never-remove safelist. It picks which slide
+  of a carousel opens — view state, not a tracker — so removing it changed what
+  the recipient sees. ShareWhere used to remove it.
 - Settings: affiliate-tag removal, redirect unwrapping, whether to offer
   short-link resolution at all, coordinate precision (exact / ~100 m / ~1 km),
   place-name inclusion, always-preview, and the `geo:`/`om:` link handlers.
