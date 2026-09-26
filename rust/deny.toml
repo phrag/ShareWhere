@@ -10,7 +10,7 @@ targets = [
 yanked = "deny"
 
 [licenses]
-# ShareWhere is GPL-3.0-or-later. LGPL-3.0 is here for the vendored ClearURLs
+# ShareBear is GPL-3.0-or-later. LGPL-3.0 is here for the vendored ClearURLs
 # catalog; everything else must be permissive so the combined work stays
 # distributable.
 #

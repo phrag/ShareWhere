@@ -36,13 +36,13 @@ jobs:
 
       # The Kotlin bindings must actually generate. A record field renamed in
       # Rust breaks the app at runtime otherwise.
-      - run: cargo build -p sharewhere-ffi --features bindgen --bin uniffi-bindgen
+      - run: cargo build -p sharebear-ffi --features bindgen --bin uniffi-bindgen
       - run: |
-          cargo build -p sharewhere-ffi
+          cargo build -p sharebear-ffi
           ./target/debug/uniffi-bindgen generate \
-            --library target/debug/libsharewhere.so \
+            --library target/debug/libsharebear.so \
             --language kotlin --out-dir /tmp/bindings --no-format
-          test -s /tmp/bindings/uniffi/sharewhere/sharewhere.kt
+          test -s /tmp/bindings/uniffi/sharebear/sharebear.kt
 
   android-target:
     name: cross-compile for Android
@@ -57,7 +57,7 @@ jobs:
           workspaces: rust
       # 16 KB pages are mandatory on Android 15+; without this flag the app
       # installs nowhere new and the error says nothing useful.
-      - run: cargo check -p sharewhere-ffi --target aarch64-linux-android
+      - run: cargo check -p sharebear-ffi --target aarch64-linux-android
         env:
           RUSTFLAGS: "-C link-arg=-Wl,-z,max-page-size=16384"
 

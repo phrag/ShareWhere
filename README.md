@@ -1,6 +1,6 @@
-# ShareWhere
+# ShareBear
 
-Share a link to ShareWhere and it comes back without the tracking. Share a
+Share a link to ShareBear and it comes back without the tracking. Share a
 location and you get every map format at once.
 
 Android app, Rust core, GPL-3.0-or-later.
@@ -11,7 +11,7 @@ Android app, Rust core, GPL-3.0-or-later.
 
 ## What it does
 
-**Clean a link.** Pick ShareWhere from the share sheet and the tracking comes
+**Clean a link.** Pick ShareBear from the share sheet and the tracking comes
 off — Instagram's `igshid`, Amazon's `/ref=` path segment and affiliate `tag`,
 `utm_*`, `fbclid`, and about 200 other providers' worth. Two share targets:
 **Clean Copy** finishes without showing a screen, with a brief popup naming what
@@ -39,7 +39,7 @@ and the coordinates in decimal and DMS.
 
 **No what3words.** Converting an address needs their API, which means an API key
 and handing them the coordinates, your IP address and a timestamp on every
-lookup. Plus Codes do the same job entirely offline, so that is what ShareWhere
+lookup. Plus Codes do the same job entirely offline, so that is what ShareBear
 uses. A `///word.word.word` is recognised and explained rather than silently
 failing.
 
@@ -49,7 +49,7 @@ reaches the network until you tap through a dialog naming the exact host.
 Being precise about the mechanism, because it is not what people assume:
 `INTERNET` is a *normal* Android permission, granted at install time, and the
 platform provides **no way to request it at runtime**. No app can put a system
-permission dialog in front of you for it. So ShareWhere gates itself instead —
+permission dialog in front of you for it. So ShareBear gates itself instead —
 the Rust core refuses to emit a request until `allowNetwork` is set, and that is
 only ever set for a single resolve, from the consent dialog. There is no "always
 allow".
@@ -62,15 +62,15 @@ apkanalyzer manifest permissions app-release.apk
 ```
 
 Two lines: `android.permission.INTERNET`, and
-`app.sharewhere.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` — the latter defined
+`app.sharebear.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` — the latter defined
 by androidx under our own application id at `signature` level, so only
-ShareWhere can hold it, guarding a receiver androidx registers internally. CI
+ShareBear can hold it, guarding a receiver androidx registers internally. CI
 fails the build if anything beyond those two appears.
 
 Two shapes of Google Maps link genuinely cannot be resolved offline, and both
 are common: `maps.app.goo.gl/…` carries no coordinates at all, and a shared
 *place* names itself by Google's own id (`data=…!1s0x4165…:0x97d9…`, or `?cid=`)
-rather than by coordinate. ShareWhere offers to look either up, and asks first —
+rather than by coordinate. ShareBear offers to look either up, and asks first —
 naming the host, and saying which of the two reasons applies — every time. You
 can turn the offer off entirely in Settings, in which case it never asks and
 never connects.
@@ -79,7 +79,7 @@ Cleaning happens *before* any of that, which is what makes the offer honest.
 In the EU a shared Maps link arrives wrapped in `consent.google.com/ml?continue=…`;
 unwrapping that offline sometimes reveals coordinates and removes the need to
 ask at all, and when it does not, the request that consent authorises carries
-the *stripped* URL — so agreeing does not hand back the session id ShareWhere
+the *stripped* URL — so agreeing does not hand back the session id ShareBear
 just removed.
 
 **No analytics, no crash reporter, no Play Services.** URLs never reach logcat
@@ -89,12 +89,12 @@ in release builds.
 
 ```
 rust/crates/
-  sharewhere-rules   vendored ClearURLs catalog + our own layer + build-time index
-  sharewhere-url     the sanitiser engine          ─┐ pure, no I/O,
-  sharewhere-geo     parsers, Plus Codes, ge0      ─┘ independently fuzzed
-  sharewhere-core    policy + the resolve state machine
-  sharewhere-ffi     UniFFI wrappers, nothing else
-  sharewhere-cli     development tool
+  sharebear-rules   vendored ClearURLs catalog + our own layer + build-time index
+  sharebear-url     the sanitiser engine          ─┐ pure, no I/O,
+  sharebear-geo     parsers, Plus Codes, ge0      ─┘ independently fuzzed
+  sharebear-core    policy + the resolve state machine
+  sharebear-ffi     UniFFI wrappers, nothing else
+  sharebear-cli     development tool
 
 app/         Compose UI, share targets, settings
 core-rust/   cargo-ndk + uniffi-bindgen, JNA
@@ -123,15 +123,15 @@ is chosen by whoever controls the link.
 
 ## Getting a build
 
-### [⬇ sharewhere-dev.apk](https://github.com/phrag/ShareWhere/releases/download/dev-build/sharewhere-dev.apk)
+### [⬇ sharebear-dev.apk](https://github.com/phrag/ShareBear/releases/download/dev-build/sharebear-dev.apk)
 
 That link always serves the newest build — bookmark it. Every push to `main` or
 a `claude/**` branch replaces it, and it needs no GitHub login, so it opens
 straight from a phone.
 
-The [`dev-build` pre-release](https://github.com/phrag/ShareWhere/releases/tag/dev-build)
+The [`dev-build` pre-release](https://github.com/phrag/ShareBear/releases/tag/dev-build)
 page shows which branch and commit it came from. Each run also uploads a
-`sharewhere-apk-<sha>` workflow artifact, with the size and full SHA-256 printed
+`sharebear-apk-<sha>` workflow artifact, with the size and full SHA-256 printed
 in the run summary, if you want a specific commit rather than the latest.
 
 Tagging `v0.2.0` (or any `x.y.z`) publishes a versioned release instead, with
@@ -150,8 +150,8 @@ turns a small app into a ~95 MB download.
 ```bash
 cd rust
 cargo test --workspace                                  # 82 tests
-cargo run -p sharewhere-cli -- clean '<url>'            # try one link
-cargo run -p sharewhere-cli -- corpus testdata/dirty_urls.jsonl
+cargo run -p sharebear-cli -- clean '<url>'            # try one link
+cargo run -p sharebear-cli -- corpus testdata/dirty_urls.jsonl
 ```
 
 **Fuzzing** needs nightly, since `cargo fuzz` builds with `-Zsanitizer=address`:
@@ -235,7 +235,7 @@ most likely place for a surprise.
 
 ## Contributing
 
-The most useful contribution is a **real dirty URL that ShareWhere handles
+The most useful contribution is a **real dirty URL that ShareBear handles
 badly** — either one it fails to clean, or worse, one it breaks. Add it to
 `rust/testdata/dirty_urls.jsonl` with a note, then fix the engine. Cases where
 the right answer is "change nothing" matter as much as the ones that strip

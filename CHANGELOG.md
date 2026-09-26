@@ -6,14 +6,23 @@ that form.
 
 ## Unreleased
 
+### Renamed
+
+The app, the GitHub project, the Android application id and every Rust crate are
+now **ShareBear** (`app.sharebear`, `sharebear-*`, `libsharebear.so`). Nothing had
+been released or published, so this is a clean break rather than a migration —
+but note that the dev-build download is now `sharebear-dev.apk`, and anyone who
+had the old APK installed gets ShareBear alongside it rather than as an upgrade,
+because the application id is part of an app's identity on Android.
+
 Nothing has been tagged yet. The `dev-build` pre-release always carries the
 newest build of the branch:
-<https://github.com/phrag/ShareWhere/releases/download/dev-build/sharewhere-dev.apk>
+<https://github.com/phrag/ShareBear/releases/download/dev-build/sharebear-dev.apk>
 
 ### Added
 
 - Link cleaning from the share sheet, over the vendored ClearURLs catalog plus
-  ShareWhere's own rules — including Google Maps, which ClearURLs does not cover.
+  ShareBear's own rules — including Google Maps, which ClearURLs does not cover.
   Two entries: **Clean Copy** finishes without a screen and briefly says what it
   removed; **Clean Share** lists everything first, then re-shares.
 - Clean-in-place via `ACTION_PROCESS_TEXT`: highlight a URL anywhere in the OS
@@ -23,7 +32,7 @@ newest build of the branch:
   Apple Maps, OpenStreetMap, Plus Code, decimal degrees and DMS.
 - Instagram's `img_index` is on the never-remove safelist. It picks which slide
   of a carousel opens — view state, not a tracker — so removing it changed what
-  the recipient sees. ShareWhere used to remove it.
+  the recipient sees. ShareBear used to remove it.
 - Settings: affiliate-tag removal, redirect unwrapping, whether to offer
   short-link resolution at all, coordinate precision (exact / ~100 m / ~1 km),
   place-name inclusion, always-preview, and the `geo:`/`om:` link handlers.

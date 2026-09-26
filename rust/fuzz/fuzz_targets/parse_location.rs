@@ -9,7 +9,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use sharewhere_geo::{
+use sharebear_geo::{
     parse_location, render_links, GeoPoint, LocationParse, Precision, RenderOptions,
 };
 

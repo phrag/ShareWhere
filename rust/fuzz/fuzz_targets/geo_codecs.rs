@@ -1,6 +1,6 @@
 //! Round-trips the two codecs we implement ourselves.
 //!
-//! Open Location Code and ge0 are the parts of `sharewhere-geo` with no
+//! Open Location Code and ge0 are the parts of `sharebear-geo` with no
 //! upstream crate behind them — they are our arithmetic, and a bug in either
 //! produces a link that opens somewhere plausible but wrong. The reference
 //! vectors pin down the values upstream publishes; this pins down everything
@@ -15,7 +15,7 @@
 
 use arbitrary::Arbitrary;
 use libfuzzer_sys::fuzz_target;
-use sharewhere_geo::{ge0, olc};
+use sharebear_geo::{ge0, olc};
 
 #[derive(Arbitrary, Debug)]
 struct Input {

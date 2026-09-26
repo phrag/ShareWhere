@@ -1,5 +1,5 @@
 [package]
-name = "sharewhere-fuzz"
+name = "sharebear-fuzz"
 version = "0.0.0"
 edition = "2021"
 publish = false
@@ -17,8 +17,8 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 arbitrary = { version = "1", features = ["derive"] }
 url = "2.5"
-sharewhere-url = { path = "../crates/sharewhere-url" }
-sharewhere-geo = { path = "../crates/sharewhere-geo" }
+sharebear-url = { path = "../crates/sharebear-url" }
+sharebear-geo = { path = "../crates/sharebear-geo" }
 
 # Fuzzing wants the optimiser on and the debug assertions on at the same time:
 # speed to reach interesting inputs, and `debug_assert!` left armed so an

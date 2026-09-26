@@ -10,7 +10,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use sharewhere_url::{find_urls, sanitize_text, SanitizeOptions};
+use sharebear_url::{find_urls, sanitize_text, SanitizeOptions};
 
 fuzz_target!(|data: &[u8]| {
     let Ok(text) = std::str::from_utf8(data) else {

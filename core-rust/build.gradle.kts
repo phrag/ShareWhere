@@ -14,7 +14,7 @@ plugins {
  */
 
 android {
-    namespace = "app.sharewhere.core"
+    namespace = "app.sharebear.core"
     compileSdk = 36
 
     defaultConfig {
@@ -104,7 +104,7 @@ val cargoBuild by tasks.registering(Exec::class) {
             abis.forEach { add("-t"); add(it) }
             add("-o"); add(out.absolutePath)
             add("build")
-            add("-p"); add("sharewhere-ffi")
+            add("-p"); add("sharebear-ffi")
             if (profile == "release") add("--release")
         },
     )
@@ -125,7 +125,7 @@ val cargoBuildHost by tasks.registering(Exec::class) {
     group = "rust"
     description = "Builds the Rust core for the host machine."
     workingDir = rustDir
-    commandLine("cargo", "build", "-p", "sharewhere-ffi")
+    commandLine("cargo", "build", "-p", "sharebear-ffi")
 
     inputs.dir(rustDir.resolve("crates"))
     inputs.file(rustDir.resolve("Cargo.lock"))
@@ -140,7 +140,7 @@ val generateBindings by tasks.registering(Exec::class) {
     dependsOn(cargoBuild, cargoBuildHost)
     workingDir = rustDir
 
-    val libraryName = if (OperatingSystem.current().isMacOsX) "libsharewhere.dylib" else "libsharewhere.so"
+    val libraryName = if (OperatingSystem.current().isMacOsX) "libsharebear.dylib" else "libsharebear.so"
     // Always the host profile, never androidRustProfile: this library is only
     // read for its FFI metadata, and it is cargoBuildHost that produces it.
     val library = rustDir.resolve("target/$hostRustProfile/$libraryName")
@@ -159,7 +159,7 @@ val generateBindings by tasks.registering(Exec::class) {
     }
 
     commandLine(
-        "cargo", "run", "-p", "sharewhere-ffi", "--features", "bindgen",
+        "cargo", "run", "-p", "sharebear-ffi", "--features", "bindgen",
         "--bin", "uniffi-bindgen", "--",
         "generate", "--library", library.absolutePath,
         "--language", "kotlin", "--out-dir", out.absolutePath,

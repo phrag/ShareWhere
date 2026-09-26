@@ -11,7 +11,7 @@ plugins {
  * to use any.
  */
 android {
-    namespace = "app.sharewhere.net"
+    namespace = "app.sharebear.net"
     compileSdk = 36
     defaultConfig { minSdk = 26 }
     compileOptions {

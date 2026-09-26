@@ -7,7 +7,7 @@
 -dontwarn java.awt.*
 
 # UniFFI's generated bindings are reached reflectively through JNA.
--keep class uniffi.sharewhere.** { *; }
+-keep class uniffi.sharebear.** { *; }
 
-# ShareWhere must never carry a crash reporter or analytics SDK, so there is
+# ShareBear must never carry a crash reporter or analytics SDK, so there is
 # nothing else to keep here. If this file grows, ask why.

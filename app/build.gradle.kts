@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "app.sharewhere"
+    namespace = "app.sharebear"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "app.sharewhere"
+        applicationId = "app.sharebear"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
@@ -17,7 +17,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Surfaced on the About screen so a user can say which build they have.
-        buildConfigField("String", "PROJECT_URL", "\"https://github.com/phrag/ShareWhere\"")
+        buildConfigField("String", "PROJECT_URL", "\"https://github.com/phrag/ShareBear\"")
     }
 
     buildTypes {
@@ -75,13 +75,13 @@ dependencies {
  * location, storage, contacts or anything else still fails the build.
  *
  * `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` is defined by androidx under our
- * own application id at `signature` level, so only ShareWhere can hold it. It
+ * own application id at `signature` level, so only ShareBear can hold it. It
  * guards a receiver androidx registers internally on pre-Android-13 devices and
  * grants nothing.
  */
 private val allowedPermissions = setOf(
     "android.permission.INTERNET",
-    "app.sharewhere.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+    "app.sharebear.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
 )
 
 val verifyDeclaredPermissions by tasks.registering {

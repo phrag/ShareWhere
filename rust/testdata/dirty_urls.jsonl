@@ -1,6 +1,6 @@
 // Golden corpus. One JSON object per line; `//` lines and blank lines are skipped.
 //   input     what a real app put on the clipboard
-//   expected  exactly what ShareWhere must produce
+//   expected  exactly what ShareBear must produce
 //   note      why this case exists — keep it meaningful, it shows up in failures
 //
 // This file is meant to GROW. Every time a real share-sheet link is handled
@@ -26,7 +26,7 @@
 
 // --- Instagram ---
 {"input": "https://www.instagram.com/p/CxYzAbCdEfG/?igshid=MzRlODBiNWFlZA%3D%3D", "expected": "https://www.instagram.com/p/CxYzAbCdEfG/", "note": "the classic Instagram share param", "provider": "instagram"}
-{"input": "https://www.instagram.com/p/CxYzAbCdEfG/?igshid=abc&img_index=1", "expected": "https://www.instagram.com/p/CxYzAbCdEfG/?img_index=1", "note": "SAFELIST: img_index picks which slide of a carousel opens. It is view state, not a tracker -- it names no person, share or session -- so stripping it silently changed what the recipient sees. ShareWhere used to remove it.", "provider": "instagram_extra"}
+{"input": "https://www.instagram.com/p/CxYzAbCdEfG/?igshid=abc&img_index=1", "expected": "https://www.instagram.com/p/CxYzAbCdEfG/?img_index=1", "note": "SAFELIST: img_index picks which slide of a carousel opens. It is view state, not a tracker -- it names no person, share or session -- so stripping it silently changed what the recipient sees. ShareBear used to remove it.", "provider": "instagram_extra"}
 {"input": "https://www.instagram.com/reel/AbC123/?igsh=xyz789", "expected": "https://www.instagram.com/reel/AbC123/", "note": "igsh is the newer form of igshid", "provider": "instagram"}
 
 // --- Amazon ---
@@ -57,7 +57,7 @@
 
 // --- Google Maps: ClearURLs covers none of this ---
 {"input": "https://www.google.com/maps/place/Big+Ben/@51.5007292,-0.1246254,17z/data=!3m1!4b1!4m6!3m5!1s0x487604c38c8cd1d9:0xb78f2474b9a45aa9!8m2!3d51.5007292!4d-0.1246254?entry=ttu&g_ep=EgoyMDI2MDcyOS4w", "expected": "https://www.google.com/maps/place/Big+Ben/@51.5007292,-0.1246254,17z/data=!3m1!4b1!4m6!3m5!1s0x487604c38c8cd1d9:0xb78f2474b9a45aa9!8m2!3d51.5007292!4d-0.1246254", "note": "coordinates must survive; only the session params go", "provider": "googlemaps"}
-{"input": "https://www.google.com/maps/search/?api=1&query=51.5007,-0.1246", "expected": "https://www.google.com/maps/search/?api=1&query=51.5007,-0.1246", "note": "SAFELIST: this is the link ShareWhere itself emits, it must survive a second pass", "provider": "preserve"}
+{"input": "https://www.google.com/maps/search/?api=1&query=51.5007,-0.1246", "expected": "https://www.google.com/maps/search/?api=1&query=51.5007,-0.1246", "note": "SAFELIST: this is the link ShareBear itself emits, it must survive a second pass", "provider": "preserve"}
 
 // --- security: a redirect target is attacker-controlled ---
 {"input": "https://www.google.com/url?q=intent%3A%2F%2Fscan%2F%23Intent%3Bscheme%3Dzxing%3Bend&sa=D", "expected": "https://www.google.com/url?q=intent%3A%2F%2Fscan%2F%23Intent%3Bscheme%3Dzxing%3Bend", "note": "SECURITY: intent: target is refused, wrapper is still cleaned", "provider": "google"}

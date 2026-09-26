@@ -20,7 +20,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ShareWhere"
+rootProject.name = "ShareBear"
 
 include(":app")
 include(":core-rust")

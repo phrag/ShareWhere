@@ -15,7 +15,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use sharewhere_url::{sanitize_url, SanitizeOptions};
+use sharebear_url::{sanitize_url, SanitizeOptions};
 use url::Url;
 
 /// Parameter keys as they literally appear. Deliberately not routed through a

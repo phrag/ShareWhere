@@ -9,7 +9,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-        The only permission ShareWhere asks for, and the only one it can use.
+        The only permission ShareBear asks for, and the only one it can use.
 
         INTERNET is a normal, install-time permission: Android grants it at
         install and provides no way to request it at runtime. So the app cannot
@@ -21,13 +21,13 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:name=".ShareWhereApp"
+        android:name=".ShareBearApp"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ShareWhere">
+        android:theme="@style/Theme.ShareBear">
 
         <activity
             android:name=".MainActivity"
@@ -51,7 +51,7 @@
             android:launchMode="singleTask"
             android:noHistory="true"
             android:taskAffinity=""
-            android:theme="@style/Theme.ShareWhere.Transparent" />
+            android:theme="@style/Theme.ShareBear.Transparent" />
 
         <!--
             Two share-sheet entries, as two aliases onto the same activity.
@@ -74,7 +74,7 @@
 
             <!--
                 Clean-in-place inside any text field. Highlight a URL anywhere
-                in the OS, pick ShareWhere from the selection menu, and the text
+                in the OS, pick ShareBear from the selection menu, and the text
                 is replaced with the cleaned version. Costs three lines and is
                 the app's best hidden feature.
             -->

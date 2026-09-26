@@ -14,8 +14,8 @@ on:
   pull_request:
     paths:
       - "rust/fuzz/**"
-      - "rust/crates/sharewhere-url/**"
-      - "rust/crates/sharewhere-geo/**"
+      - "rust/crates/sharebear-url/**"
+      - "rust/crates/sharebear-geo/**"
 
 permissions:
   contents: read
