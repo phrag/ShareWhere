@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One APK, one permission: INTERNET, declared below and used only behind an
+    explicit per-link consent dialog.
+
+    There is no analytics SDK, no crash reporter and no Play Services, so there
+    is nothing else to declare. CI asserts that this stays true.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        The only permission ShareBear asks for, and the only one it can use.
+
+        INTERNET is a normal, install-time permission: Android grants it at
+        install and provides no way to request it at runtime. So the app cannot
+        put a system permission dialog in front of you. What it does instead is
+        refuse to use it without asking: the core returns NeedsConsent and the
+        UI shows a dialog naming the exact host before any request is made.
+        Nothing reaches the network until you tap through that.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:name=".ShareBearApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.ShareBear">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            The share target. Translucent and historyless so "Clean & copy" can
+            finish without ever showing a screen: the whole point is that it
+            feels instantaneous.
+        -->
+        <activity
+            android:name=".share.ShareActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.ShareBear.Transparent" />
+
+        <!--
+            Two share-sheet entries, as two aliases onto the same activity.
+
+            An alias cannot carry an intent extra, so ShareActivity reads which
+            one was launched from the incoming component name. That is more
+            reliable than publishing dynamic share shortcuts, and it means both
+            entries appear in the sheet without any runtime registration.
+        -->
+        <activity-alias
+            android:name=".share.CleanAndCopy"
+            android:exported="true"
+            android:label="@string/share_target_clean"
+            android:targetActivity=".share.ShareActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <!--
+                Clean-in-place inside any text field. Highlight a URL anywhere
+                in the OS, pick ShareBear from the selection menu, and the text
+                is replaced with the cleaned version. Costs three lines and is
+                the app's best hidden feature.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".share.CleanAndShare"
+            android:exported="true"
+            android:label="@string/share_target_preview"
+            android:targetActivity=".share.ShareActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity-alias>
+
+        <!--
+            Map-link handlers ship DISABLED and are switched on from Settings.
+
+            An app that grabs geo: and omaps.app links on first install hijacks
+            the user's map navigation without being asked, which is hostile
+            regardless of how good the intent is. Enabled at runtime with
+            PackageManager.setComponentEnabledSetting.
+        -->
+        <activity-alias
+            android:name=".share.GeoLinkHandler"
+            android:enabled="false"
+            android:exported="true"
+            android:targetActivity=".share.ShareActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="geo" />
+                <data android:scheme="om" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".share.MapWebLinkHandler"
+            android:enabled="false"
+            android:exported="true"
+            android:targetActivity=".share.ShareActivity">
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="omaps.app" />
+                <data android:scheme="https" android:host="maps.app.goo.gl" />
+            </intent-filter>
+        </activity-alias>
+
+    </application>
+</manifest>

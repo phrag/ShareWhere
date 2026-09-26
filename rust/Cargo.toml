@@ -1,0 +1,49 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/sharebear-rules",
+    "crates/sharebear-url",
+    "crates/sharebear-geo",
+    "crates/sharebear-core",
+    "crates/sharebear-ffi",
+    "crates/sharebear-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/phrag/ShareBear"
+authors = ["ShareBear contributors"]
+
+[workspace.dependencies]
+sharebear-rules = { path = "crates/sharebear-rules", version = "0.1.0" }
+sharebear-url = { path = "crates/sharebear-url", version = "0.1.0" }
+sharebear-geo = { path = "crates/sharebear-geo", version = "0.1.0" }
+sharebear-core = { path = "crates/sharebear-core", version = "0.1.0" }
+
+indexmap = { version = "2", features = ["serde"] }
+uniffi = "0.32"
+percent-encoding = "2.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = "2.5"
+
+# Trimmed feature set: the catalog needs unicode-perl (\w, \d) and case folding,
+# but not the full unicode tables. Saves several hundred KB in the .so.
+regex = { version = "1.10", default-features = false, features = [
+    "std",
+    "perf",
+    "unicode-perl",
+    "unicode-case",
+] }
+
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+# NOTE: deliberately NOT panic = "abort". UniFFI relies on catch_unwind to turn
+# panics into FFI errors; aborting would take the whole Android process down.
+panic = "unwind"

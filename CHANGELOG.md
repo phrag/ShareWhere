@@ -1,0 +1,90 @@
+# Changelog
+
+Release notes are pulled from this file by the tag build — the section under
+`## <version>` becomes the GitHub release body, so keep the headings exactly in
+that form.
+
+## Unreleased
+
+### Renamed
+
+The app, the GitHub project, the Android application id and every Rust crate are
+now **ShareBear** (`app.sharebear`, `sharebear-*`, `libsharebear.so`). Nothing had
+been released or published, so this is a clean break rather than a migration —
+but note that the dev-build download is now `sharebear-dev.apk`, and anyone who
+had the old APK installed gets ShareBear alongside it rather than as an upgrade,
+because the application id is part of an app's identity on Android.
+
+Nothing has been tagged yet. The `dev-build` pre-release always carries the
+newest build of the branch:
+<https://github.com/phrag/ShareBear/releases/download/dev-build/sharebear-dev.apk>
+
+### Added
+
+- Link cleaning from the share sheet, over the vendored ClearURLs catalog plus
+  ShareBear's own rules — including Google Maps, which ClearURLs does not cover.
+  Two entries: **Clean Copy** finishes without a screen and briefly says what it
+  removed; **Clean Share** lists everything first, then re-shares.
+- Clean-in-place via `ACTION_PROCESS_TEXT`: highlight a URL anywhere in the OS
+  and replace it with the cleaned version.
+- Location sharing in eleven formats at once — `geo:`, a tracker-free Google
+  Maps link, three Organic Maps forms including the compact `ge0` short link,
+  Apple Maps, OpenStreetMap, Plus Code, decimal degrees and DMS.
+- Instagram's `img_index` is on the never-remove safelist. It picks which slide
+  of a carousel opens — view state, not a tracker — so removing it changed what
+  the recipient sees. ShareBear used to remove it.
+- Settings: affiliate-tag removal, redirect unwrapping, whether to offer
+  short-link resolution at all, coordinate precision (exact / ~100 m / ~1 km),
+  place-name inclusion, always-preview, and the `geo:`/`om:` link handlers.
+- A consent dialog before any network request, naming the host it will contact.
+- Google's `consent.google.com` wrapper is unwrapped offline. In the EU this is
+  what a shared Maps link actually looks like, and everything useful is hidden
+  inside its `continue` parameter.
+- Instagram's `stkn` share token is stripped. Upstream ClearURLs covers
+  `igshid` and `igsh` but not this one, which is what Instagram attaches to a
+  reel or story link today.
+- Google Maps links that name a place by id rather than by coordinate — the
+  normal result of sharing a place rather than a pin — now offer to resolve
+  instead of reporting nothing.
+- `cargo-fuzz` targets for `sanitize_url`, `sanitize_text`, `parse_location` and
+  the Plus Code / `ge0` codecs, run nightly in CI. They assert the safety
+  invariants — host and scheme preserved, parameters only ever removed, codecs
+  round-trip, "strip place name" really strips it — rather than only checking
+  that nothing panics.
+
+### Changed
+
+- Locations are now cleaned before they are parsed. Unwrapping a wrapper first
+  can remove the need for a network request entirely, and when it cannot, the
+  consent dialog names the host that actually holds the answer and the request
+  carries the *stripped* URL — so agreeing does not hand back the session id
+  that was just removed.
+
+### Fixed
+
+Three defects found by the fuzz targets below, none of which would have crashed
+— all three produced a confident wrong answer, which is the failure mode that
+matters for a sanitiser.
+
+- A Plus Code whose leading pair ran off the top of the world — `XX232323+`
+  decoded to latitude 288 — was accepted as valid, so a hostile `plus.codes`
+  link could put a pin at a coordinate no map projection has and every emitter
+  would render links to it.
+- Amazon's `\/ref=[^/?]*` rewrite matched a literal `/ref=` inside a *query
+  value* and, since the pattern excludes only `/` and `?`, ran through every
+  `&` to the end of the query — deleting unrelated parameters and splicing what
+  was left into keys that were never there. Rewrites are now vetted per match
+  against the rule they were always supposed to respect: a rewrite may drop
+  query parameters, never invent one.
+- Cleaning was not idempotent on URLs with many nested `/ref=` segments or a
+  trailing whitespace character, so the preview could disagree with what landed
+  on the clipboard.
+
+### Notes
+
+- Plus Codes match all 302 upstream reference vectors exactly; the `ge0` codec
+  matches Organic Maps' own test vectors.
+- what3words is deliberately absent: converting an address needs their API, a
+  key, and handing them the coordinates, an IP address and a timestamp. Plus
+  Codes do the same job offline.
+- Nothing in this changelog has been exercised on a physical device yet.

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A link with its tracking tail cut off. Vector rather than a set of PNGs so
+    the icon is one reviewable text file instead of five opaque binaries.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M46.5,61.5l-6,6a10.5,10.5 0,0 1,-14.85 -14.85l12,-12a10.5,10.5 0,0 1,14.85 0l1.5,1.5 -5.25,5.25 -1.5,-1.5a3,3 0,0 0,-4.35 0l-12,12a3,3 0,0 0,4.35 4.35l6,-6z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M61.5,46.5l6,-6a10.5,10.5 0,0 1,14.85 14.85l-6,6 -5.25,-5.25 6,-6a3,3 0,0 0,-4.35 -4.35l-6,6z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M69,66l4.5,-4.5 12,12 -4.5,4.5z"
+        android:fillAlpha="0.55" />
+</vector>
