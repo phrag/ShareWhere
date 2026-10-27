@@ -1,5 +1,12 @@
 # ShareBear
 
+[![Android](https://img.shields.io/github/actions/workflow/status/phrag/ShareWhere/android.yml?branch=main&label=Android)](https://github.com/phrag/ShareWhere/actions/workflows/android.yml)
+[![Rust](https://img.shields.io/github/actions/workflow/status/phrag/ShareWhere/rust.yml?branch=main&label=Rust)](https://github.com/phrag/ShareWhere/actions/workflows/rust.yml)
+[![Licence: GPL-3.0](https://img.shields.io/github/license/phrag/ShareWhere)](LICENSE)
+![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)
+![No Google Play Services](https://img.shields.io/badge/Google%20Play%20Services-none-2ea44f)
+![Rust core](https://img.shields.io/badge/core-Rust-dea584?logo=rust&logoColor=white)
+
 **ShareBear cleans tracking junk out of links.** Share any link to it —
 from Instagram, Amazon, Google, wherever — the way you'd share to any other
 app, and you get the same link back with the tracking stripped, either
