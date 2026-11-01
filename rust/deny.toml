@@ -9,13 +9,9 @@ targets = [
 [advisories]
 yanked = "deny"
 ignore = [
-    # basic-toml is flagged unmaintained, not vulnerable. It reaches the graph
-    # only through askama_derive, which uniffi's binding generator (the
-    # `bindgen` feature of sharebear-ffi) uses at build time; nothing in the
-    # shipped library parses TOML with it. The latest askama_derive (0.16.1)
-    # and uniffi_bindgen (0.32.2) still depend on it, so there is no upgrade
-    # to take yet. Revisit when uniffi moves to an askama without basic-toml.
-    { id = "RUSTSEC-2026-0374", reason = "unmaintained build-time-only dependency of uniffi bindgen via askama_derive; no maintained alternative upstream yet" },
+    # Build-time only: pulled in by uniffi_bindgen via askama, and no upgrade
+    # exists. Drop this once uniffi moves to a maintained TOML parser.
+    { id = "RUSTSEC-2026-0374", reason = "transitive dep of uniffi codegen; no safe upgrade available" },
 ]
 
 [licenses]
