@@ -8,6 +8,11 @@ targets = [
 
 [advisories]
 yanked = "deny"
+ignore = [
+    # Build-time only: pulled in by uniffi_bindgen via askama, and no upgrade
+    # exists. Drop this once uniffi moves to a maintained TOML parser.
+    { id = "RUSTSEC-2026-0374", reason = "transitive dep of uniffi codegen; no safe upgrade available" },
+]
 
 [licenses]
 # ShareBear is GPL-3.0-or-later. LGPL-3.0 is here for the vendored ClearURLs
